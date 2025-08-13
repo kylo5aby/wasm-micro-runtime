@@ -31,11 +31,11 @@ runs:
       shell: bash
       run: |
         echo "Downloading wasi-sdk for Ubuntu..."
-        sudo wget -O wasi-sdk.tar.gz --progress=dot:giga https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-25/wasi-sdk-25.0-x86_64-linux.tar.gz
+        sudo wget -O wasi-sdk.tar.gz --progress=dot:giga https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-27/wasi-sdk-27.0-x86_64-linux.tar.gz
 
         echo "Extracting wasi-sdk..."
         sudo tar -xf wasi-sdk.tar.gz
-        sudo ln -sf  wasi-sdk-25.0-x86_64-linux/ wasi-sdk
+        sudo ln -sf  wasi-sdk-27.0-x86_64-linux/ wasi-sdk
 
         echo "Downloading wabt for Ubuntu..."
         sudo wget -O wabt.tar.gz     --progress=dot:giga https://github.com/WebAssembly/wabt/releases/download/1.0.37/wabt-1.0.37-ubuntu-20.04.tar.gz
@@ -55,11 +55,11 @@ runs:
       shell: bash
       run: |
         echo "Downloading wasi-sdk for macOS-13..."
-        sudo wget -O wasi-sdk.tar.gz --progress=dot:giga https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-25/wasi-sdk-25.0-x86_64-macos.tar.gz
+        sudo wget -O wasi-sdk.tar.gz --progress=dot:giga https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-27/wasi-sdk-27.0-x86_64-macos.tar.gz
 
         echo "Extracting wasi-sdk..."
         sudo tar -xf wasi-sdk.tar.gz
-        sudo ln -sf  wasi-sdk-25.0-x86_64-macos wasi-sdk
+        sudo ln -sf  wasi-sdk-27.0-x86_64-macos wasi-sdk
 
         echo "Downloading wabt for macOS-13..."
         sudo wget -O wabt.tar.gz     --progress=dot:giga https://github.com/WebAssembly/wabt/releases/download/1.0.36/wabt-1.0.36-macos-12.tar.gz
@@ -79,11 +79,11 @@ runs:
       shell: bash
       run: |
         echo "Downloading wasi-sdk for macOS-14..."
-        sudo wget -O wasi-sdk.tar.gz --progress=dot:giga https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-25/wasi-sdk-25.0-arm64-macos.tar.gz
+        sudo wget -O wasi-sdk.tar.gz --progress=dot:giga https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-27/wasi-sdk-27.0-arm64-macos.tar.gz
 
         echo "Extracting wasi-sdk..."
         sudo tar -xf wasi-sdk.tar.gz
-        sudo ln -sf  wasi-sdk-25.0-arm64-macos wasi-sdk
+        sudo ln -sf  wasi-sdk-27.0-arm64-macos wasi-sdk
 
         echo "Downloading wabt for macOS-14..."
         sudo wget -O wabt.tar.gz     --progress=dot:giga https://github.com/WebAssembly/wabt/releases/download/1.0.37/wabt-1.0.37-macos-14.tar.gz
@@ -108,7 +108,7 @@ runs:
         mkdir -p /opt/wabt
 
         echo "Downloading wasi-sdk for Windows..."
-        wget -O wasi-sdk.tar.gz --progress=dot:giga https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-25/wasi-sdk-25.0-x86_64-windows.tar.gz
+        wget -O wasi-sdk.tar.gz --progress=dot:giga https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-27/wasi-sdk-27.0-x86_64-windows.tar.gz
 
         echo "Extracting wasi-sdk..."
         tar --strip-components=1 -xf wasi-sdk.tar.gz -C /opt/wasi-sdk
