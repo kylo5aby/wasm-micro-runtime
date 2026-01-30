@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Check if a test case is useful (relative to other tests in the same test file)
+检查某个测试用例是否对覆盖率有贡献（相对于同一测试文件的其他测试）
 
 Usage:
     python3 is_test_case_useful.py <test_file.cc> <test_case_name>
 
-Examples:
+Example:
     python3 is_test_case_useful.py smart-tests/aot-1/enhanced_aot_runtime_test.cc \
         EnhancedAotRuntimeTest.aot_resolve_import_func_Success
 
@@ -37,7 +37,7 @@ def get_module_name(test_file: str) -> str:
 
 def get_suite_name_from_test_case(test_case: str) -> str:
     """Extract the suite name from the test case name"""
-    # EnhancedAotRuntimeTest.aot_memory_init_xxx → EnhancedAotRuntimeTest
+    # EnhancedAotRuntimeTest.aot_memory_init_xxx -> EnhancedAotRuntimeTest
     if '.' in test_case:
         return test_case.split('.')[0]
     return test_case
@@ -50,7 +50,7 @@ def run_command(cmd: str) -> tuple[int, str]:
 
 
 def get_covered_lines(coverage_file: str) -> set[tuple[str, int]]:
-    """Extract the covered lines from the coverage.info file (file, line number)"""
+    """Extract the covered lines (file, line number) from the coverage.info file"""
     covered = set()
     current_file = None
     
@@ -71,7 +71,7 @@ def get_covered_lines(coverage_file: str) -> set[tuple[str, int]]:
 
 
 def get_covered_functions(coverage_file: str) -> set[tuple[str, str]]:
-    """Extract the covered functions from the coverage.info file (file, function name)"""
+    """Extract the covered functions (file, function name) from the coverage.info file"""
     covered = set()
     current_file = None
     
@@ -96,16 +96,16 @@ def run_tests_except_one(module_name: str, suite_name: str, exclude_test: str) -
     """Run all tests in the test file except the specified test, return the covered (line, function)"""
     build_dir = f"build/smart-tests/{module_name}"
     
-    # Clean up coverage data
+    # Clean up the coverage data
     run_command(f"find {build_dir} -name '*.gcda' -delete 2>/dev/null")
     
-    # Only run the tests in the suite, but exclude the specified test
+    # Run only the tests in the suite, but exclude the specified test
     # ctest -R "SuiteName" -E "^SuiteName\.TestName$"
-    # Note: only escape the dot, don't use re.escape (it will cause double backslashes)
+    # Note: only escape the dot, don't use re.escape (it will produce double backslashes)
     exclude_pattern = exclude_test.replace('.', r'\.')
     run_command(f"ctest --test-dir {build_dir} -R '{suite_name}' -E '^{exclude_pattern}$' --output-on-failure 2>&1")
     
-    # Collect coverage
+    # Collect the coverage
     run_command(f"lcov --capture --directory {build_dir} --output-file coverage.without.info 2>&1")
     run_command(f"lcov --extract coverage.without.info '*/core/iwasm/*' '*/core/shared/*' --output-file coverage.without.filtered.info 2>&1")
     
@@ -116,13 +116,13 @@ def run_all_tests_in_file(module_name: str, suite_name: str) -> tuple[set[tuple[
     """Run all tests in the test file, return the covered (line, function)"""
     build_dir = f"build/smart-tests/{module_name}"
     
-    # Clean up coverage data
+    # Clean up the coverage data
     run_command(f"find {build_dir} -name '*.gcda' -delete 2>/dev/null")
     
-    # Only run the tests in the suite
+    # Run only the tests in the suite
     run_command(f"ctest --test-dir {build_dir} -R '{suite_name}' --output-on-failure 2>&1")
     
-    # Collect coverage
+    # Collect the coverage
     run_command(f"lcov --capture --directory {build_dir} --output-file coverage.all.info 2>&1")
     run_command(f"lcov --extract coverage.all.info '*/core/iwasm/*' '*/core/shared/*' --output-file coverage.all.filtered.info 2>&1")
     
@@ -130,7 +130,6 @@ def run_all_tests_in_file(module_name: str, suite_name: str) -> tuple[set[tuple[
 
 
 def check_test_usefulness(test_file: str, test_case: str) -> dict:
-    """Check if the test case is useful (relative to other tests in the same file)"""
     module_name = get_module_name(test_file)
     if not module_name:
         print(f"Error: Unable to extract the module name from the path: {test_file}", file=sys.stderr)

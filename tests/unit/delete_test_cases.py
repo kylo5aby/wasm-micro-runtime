@@ -20,6 +20,38 @@ import sys
 from pathlib import Path
 
 
+def extend_start_to_include_leading_comments(content: str, start_pos: int) -> int:
+    pos = start_pos
+
+    while True:
+        i = pos
+        while i > 0 and content[i - 1].isspace():
+            i -= 1
+        gap = content[i:pos]
+        if gap.count("\n") > 2:
+            break
+
+        if i >= 2 and content[i - 2:i] == "*/":
+            comment_start = content.rfind("/*", 0, i - 2)
+            if comment_start != -1:
+                line_start = content.rfind("\n", 0, comment_start) + 1
+                if content[line_start:comment_start].strip() == "":
+                    comment_start = line_start
+
+                pos = comment_start
+                continue
+
+        line_start = content.rfind("\n", 0, i) + 1
+        line_text = content[line_start:i]
+        if line_text.lstrip().startswith("//"):
+            pos = line_start
+            continue
+
+        break
+
+    return pos
+
+
 def find_test_case_range(content: str, suite_name: str, test_name: str) -> tuple[int, int] | None:
     """Find the start and end positions of a test case, return (start_pos, end_pos) or None"""
     # Match TEST_F, TEST, TEST_P
@@ -197,6 +229,7 @@ def delete_test_cases(test_file: str, test_cases: list[str]) -> None:
             continue
         
         start_pos, end_pos = range_result
+        start_pos = extend_start_to_include_leading_comments(content, start_pos)
         content = content[:start_pos] + content[end_pos:]
         deleted.append(test_case)
     

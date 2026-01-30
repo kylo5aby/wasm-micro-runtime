@@ -64,8 +64,8 @@ After EVERY step completion, you MUST:
 
 | Sub-Agent | Purpose | Input | Output |
 |-----------|---------|-------|--------|
-| tests-review | Analyzes test coverage and quality | test `.cc` file path | `*_review.md` |
-| tests-fix | Applies review recommendations | `*_review.md` path | `*_fix.md` |
+| tests-review | Analyzes coverage, deletes redundant tests, runs clang-tidy | test `.cc` file path | `*_review.md` + modified `.cc` |
+| tests-fix | Applies review recommendations (quality, static analysis, alignment, new tests) | `*_review.md` path | `*_fix.md` |
 | tests-verify | Validates fix compliance | `*_fix.md` path | `*_verify.md` |
 
 ## Pipeline Flow

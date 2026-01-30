@@ -23,35 +23,28 @@ model_name: main
 ```markdown
 # Test Review Summary: <test_file.cc>
 
-## Redundancy Cleanup (from check_redundant_tests.sh)
+## Redundancy Cleanup (from check_redundant_tests.js)
 
 - **Original tests:** N
 - **Identified (redundant):** K
 - **Remaining tests (useful):** M
-- **Tests with no coverage data:** P (if any)
 
-### Redundant Test Cases (to be deleted by `tests-fix`)
-| Test Case | Reason |
-|-----------|--------|
-| `test_case_name` | No incremental coverage contribution |
-
-### Tests with No Coverage Data (recorded for reference)
-| Test Case | Status |
-|-----------|--------|
-| `test_case_name` | No coverage data available (0 lines or coverage unavailable) |
-
-**Note**: Tests with no coverage data are recorded for reference only. They may indicate test execution issues, coverage collection problems, or tests that don't exercise code in target directories.
+### Redundant Test Cases (deleted in PHASE 1.5)
+| Test Case | Reason | Status |
+|-----------|--------|--------|
+| `test_case_name` | No incremental coverage contribution | ✅ Deleted |
 
 ---
-## Detailed Review
 ```
+
+(Then detailed review for each test case follows below)
 
 **⚠️ CRITICAL: If Redundancy Cleanup cannot execute successfully, STOP processing immediately and output:**
 
 ```markdown
 # Test Review Summary: <test_file.cc>
 
-## Redundancy Cleanup (from check_redundant_tests.sh)
+## Redundancy Cleanup (from check_redundant_tests.js)
 
 **⚠️ CRITICAL: STOP PROCESSING THIS FILE**
 
@@ -66,10 +59,11 @@ model_name: main
 
 ---
 
-## Test Case [1/M]: SuiteName.TestName
+## Test Case [1/M]: SuitePrefix/ClassName.TestName
 
 **File**: `smart-tests/module/test_file.cc`
 **Lines**: 45-72
+**Parameterized**: Yes (INTERP, AOT) / No
 
 ### Coverage
 - Lines: X.X% (N/M)
@@ -90,7 +84,7 @@ model_name: main
 ### Expected Testing Purpose (from test code - what AI INTENDED to test)
 
 **Intended target**: `function_name`
-**Intended scenario**: <what test tries to set up>
+**Intended scenario**: <what test tries to set up; if parameterized, include Param (e.g., INTERP/LLVM_JIT) and how it changes behavior>
 **Intended outcome**: <what assertions expect>
 
 ### Alignment: YES / NO
@@ -147,16 +141,43 @@ List quality issues found in this specific test case:
 1. `func_name2_BoundaryCondition_HandlesCorrectly`
    - Scenario: <description>
    - Expected: <outcome>
+
+---
+
+# Quality Issues Summary: <test_file.cc>
+
+| Test Case | Issue | Recommendation |
+|-----------|-------|----------------|
+| `test_A` | `ASSERT_TRUE(true)` placeholder | Replace with real assertion or delete |
+| `test_B` | `GTEST_SKIP()` placeholder | Delete test case |
+| `test_C` | Empty test body | Delete test case |
+
+**Total**: N issues found (or "No quality issues found")
+
+---
+
+# Static Analysis: <test_file.cc>
+
+## clang-tidy Results
+
+| Line | Category | Message |
+|------|----------|---------|
+| 42 | bugprone-narrowing-conversions | narrowing conversion from 'uint32' to 'int32' |
+| 156 | readability-convert-member-functions-to-static | method 'foo' can be made static |
+
+**Summary**: N warnings, M errors (or "No issues found")
 ```
 
 **MANDATORY RULES:**
 1. You MUST analyze EACH test case individually with [N/M] numbering
-2. You MUST include Real vs Expected purpose for EACH test
-3. You MUST have explicit `Alignment: YES` or `Alignment: NO` for EACH test (use STRICT criteria!)
+2. You MUST include Real vs Expected purpose for EACH test case
+3. You MUST have explicit `Alignment: YES` or `Alignment: NO` for EACH test case (use STRICT criteria!)
 4. You MUST generate Path Coverage Summary table at the END
 5. You MUST suggest specific new test cases for missing paths
 6. **Line coverage MUST include specific line numbers** (e.g., "Covered: 5583, 5589-5594"), NOT vague percentages like "~0.5%"
-7. **Alignment: NO if test name implies SUCCESS but coverage shows FAILURE path** (or vice versa)
+7. **Alignment: NO if the test case name is inconsistent with the covered path**
+8. **You MUST generate Quality Issues Summary table** (consolidating all quality issues from per-test Quality Screening)
+9. **Parameterized tests (TEST_P)**: Note if test is parameterized, analyze combined coverage from all instances
 
 ---
 
@@ -173,22 +194,22 @@ List quality issues found in this specific test case:
 │  PHASE 0: INITIALIZATION                                             │
 │  - Receive single test file path as INPUT                            │
 │  - cd ~/zhenwei/wasm-micro-runtime/tests/unit                        │
-│  - cmake -S . -B build -DCOLLECT_CODE_COVERAGE=1 2>&1 | tail -10     │
 │  - Extract MODULE_NAME and TEST_FILE_PATH                            │
-│  - Get all test cases: node get_all_test_cases.js MODULE_NAME        │
+│  - cmake -S . -B build -DCOLLECT_CODE_COVERAGE=1 2>&1 | tail -10     │
+│  - cmake --build build/smart-tests/<MODULE_NAME> 2>&1 | tail -15     │
 └─────────────────────────────────────────────────────────────────────┘
                                    │
                                    ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │  PHASE 0.5: REDUNDANCY DETECTION & CLEANUP                          │
-│  - Run: ./check_redundant_tests.sh <MODULE> <TEST_FILE_PATH>        │
+│  - Run: node check_redundant_tests.js <MODULE> <TEST_FILE_PATH>     │
 │  - Check script exit code and output                                │
 │  - ⚠️ IF SCRIPT FAILS OR CANNOT EXECUTE:                            │
 │    → Write STOP message to review report                            │
 │    → TERMINATE processing immediately                               │
-│    → DO NOT proceed to PHASE 1 or PHASE 2                          │
+│    → DO NOT proceed to PHASE 1 or PHASE 2                           │
 │  - IF SUCCESS:                                                       │
-│    → Read: /tmp/<BASENAME>_redundant_check.md                       │
+│    → Read: /tmp/<MODULE_NAME>_redundant_check.md                     │
 │    → Parse redundant tests list → REDUNDANT_TESTS                   │
 │    → Record redundant tests list in review report                   │
 │    → Continue to PHASE 1                                            │
@@ -197,7 +218,7 @@ List quality issues found in this specific test case:
                                    │
                         ┌──────────┴──────────┐
                         ▼                     ▼
-              ┌─────────────────┐   ┌─────────────────┐
+              ┌─────────────────┐    ┌─────────────────┐
               │ SCRIPT FAILED?   │   │ SCRIPT SUCCESS? │
               └────────┬─────────┘   └────────┬────────┘
                        │                      │
@@ -210,8 +231,9 @@ List quality issues found in this specific test case:
                                              │
                                              ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│  PHASE 1: SETUP                                                      │
-│  - Extract remaining TEST_CASE_NAMEs from file                      │
+│  PHASE 1: SETUP                                                     │
+│  - Extract useful TEST_CASE_NAMEs                                   │
+│     from /tmp/<MODULE_NAME>_redundant_check.md                      │
 │  - Record TOTAL_COUNT = number of remaining tests                   │
 │  - Create/clear <TEST_FILE>_review.md (same directory)              │
 │  - Write cleanup report section first                               │
@@ -220,7 +242,17 @@ List quality issues found in this specific test case:
                                    │
                                    ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│  PHASE 2: FOR EACH TEST_CASE in USEFUL_TESTS (SEQUENTIAL)           │
+│  PHASE 1.5: REDUNDANCY CLEANUP (delete redundant tests)             │
+│  - Read REDUNDANT_TESTS from /tmp/<MODULE_NAME>_redundant_check.md  │
+│  - Delete redundant tests in bulk:                                  │
+│    python3 delete_test_cases.py <TEST_FILE_PATH> <test1> <test2>... │
+│  - Rebuild module                                                   │
+│  - Record deletions in review report                                │
+└─────────────────────────────────────────────────────────────────────┘
+                                   │
+                                   ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  PHASE 2: FOR EACH TEST in USEFUL_TESTS (SEQUENTIAL)                │
 │  - Step 1: Generate coverage                                        │
 │  - Step 2: Analyze REAL purpose (from coverage - what IS tested)    │
 │  - Step 3: Analyze EXPECTED purpose (from code - what AI INTENDED)  │
@@ -250,13 +282,24 @@ List quality issues found in this specific test case:
                                    │
                                    ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│  PHASE 3: FINISH                                                     │
+│  PHASE 2.75: STATIC ANALYSIS (clang-tidy)                           │
+│  - Configure with clang toolchain in SEPARATE build directory:      │
+│    cmake -S . -B build-clang --toolchain ../fuzz/.../clang_...cmake │
+│         -DCMAKE_EXPORT_COMPILE_COMMANDS=On                          │
+│  - Run: clang-tidy -p build-clang <TEST_FILE_PATH> 2>&1 | tail -200 │
+│  - Record warnings/errors in review report                          │
+│  - Note: Uses build-clang to avoid overwriting coverage build       │
+└─────────────────────────────────────────────────────────────────────┘
+                                   │
+                                   ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  PHASE 3: FINISH                                                    │
 │  - Output: <TEST_FILE>_review.md ready for fix agent                │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
 **CRITICAL RULES**:
-1. You MUST run `check_redundant_tests.sh` FIRST for each test file.
+1. You MUST run `node check_redundant_tests.js` FIRST for each test file.
 2. **⚠️ MANDATORY: If Redundancy Cleanup cannot execute successfully, STOP processing immediately and write STOP message to review report. DO NOT proceed to PHASE 1 or PHASE 2.**
 3. You MUST skip redundant tests identified by the script (do not review them further).
 4. You MUST process ALL useful (non-redundant) test cases (only if Redundancy Cleanup succeeded).
@@ -298,19 +341,22 @@ ctest ... 2>&1 | tail -30  # Use full output only on failure
 ### Rule 2: Extract Complete Test Cases (Not Entire Files)
 ```bash
 # Method 1: Extract complete test case using awk (RECOMMENDED)
-# Finds TEST_F and extracts until the matching closing brace
-awk '/TEST_F\(SuiteName, TestName\)/,/^}$/' test_file.cc
+# Supports TEST_F, TEST_P, and TEST macros
+# Replace <MACRO> with actual macro (TEST_F, TEST_P, or TEST)
+awk '/TEST_F\(SuiteName, TestName\)/,/^}$/' test_file.cc    # For TEST_F
+awk '/TEST_P\(SuiteName, TestName\)/,/^}$/' test_file.cc    # For TEST_P (parameterized)
+awk '/TEST\(SuiteName, TestName\)/,/^}$/' test_file.cc      # For TEST
 
 # Method 2: If Method 1 fails, use generous line count
 # Most test cases are 30-100 lines; use 120 to be safe
-grep -B 3 -A 120 "TEST_F(SuiteName, TestName)" test_file.cc
+grep -B 3 -A 120 "TEST_[FP]\?(SuiteName, TestName)" test_file.cc
 
 # Method 3: For very long test cases, check line count first
-grep -n "TEST_F(SuiteName, TestName)" test_file.cc  # Get start line
-# Then read from start line to next TEST_F or end of file
+grep -n "TEST_[FP]\?(SuiteName, TestName)" test_file.cc  # Get start line
+# Then read from start line to next TEST_ or end of file
 ```
 
-**Why complete extraction matters**: Truncated test cases lead to incorrect purpose analysis. The agent MUST see all assertions to understand what the test validates.
+**Note**: When extracting TEST_P (parameterized) test cases, the test code is the same for all parameter instances. The difference is in the runtime behavior based on `GetParam()` value.
 
 ### Rule 3: Understanding coverage.info Format
 
@@ -357,6 +403,9 @@ cd ~/zhenwei/wasm-micro-runtime/tests/unit
 
 # 0.2 Configure build with coverage (only once)
 cmake -S . -B build -DCOLLECT_CODE_COVERAGE=1 2>&1 | tail -10
+
+# 0.3 Build the module (REQUIRED before check_redundant_tests.js)
+cmake --build build/smart-tests/<MODULE_NAME> 2>&1 | tail -15
 ```
 
 ### PHASE 0.5: Redundancy Detection
@@ -373,11 +422,12 @@ For the input test file:
 #   MODULE_NAME = "aot-1"
 #   TEST_FILE_PATH = "smart-tests/aot-1/enhanced_aot_runtime_test.cc"
 
-# 0.5.2 Run redundancy detection script
-./check_redundant_tests.sh <MODULE_NAME> <TEST_FILE_PATH>
+# 0.5.2 Run redundancy detection script (node)
+# Note: check_redundant_tests.js now gets test cases directly from ctest
+node check_redundant_tests.js <MODULE_NAME> <TEST_FILE_PATH> 2>&1 | tail -30
 EXIT_CODE=$?
 
-# 0.5.3 Check script execution result
+# 0.5.4 Check script execution result
 if [ $EXIT_CODE -ne 0 ]; then
     # Script failed - STOP processing
     # Write STOP message to review report and terminate
@@ -385,17 +435,17 @@ if [ $EXIT_CODE -ne 0 ]; then
 fi
 
 # Check if output file exists and is readable
-if [ ! -f "/tmp/<BASENAME>_redundant_check.md" ]; then
+if [ ! -f "/tmp/<MODULE_NAME>_redundant_check.md" ]; then
     # Output file missing - STOP processing
     exit 1
 fi
 
-# 0.5.4 Read the output file
-cat /tmp/<BASENAME>_redundant_check.md
+# 0.5.5 Read the output file
+cat /tmp/<MODULE_NAME>_redundant_check.md
 
-# 0.5.5 Check if report indicates execution failure
+# 0.5.6 Check if report indicates execution failure
 # Look for keywords like "could not complete", "test execution issues", "failed"
-grep -i "could not complete\|test execution issues\|failed\|error" /tmp/<BASENAME>_redundant_check.md
+grep -i "could not complete\|test execution issues\|failed\|error" /tmp/<MODULE_NAME>_redundant_check.md
 if [ $? -eq 0 ]; then
     # Report indicates failure - STOP processing
     exit 1
@@ -405,20 +455,16 @@ fi
 **Parse the redundancy report** to get:
 - `REDUNDANT_TESTS`: List of test cases marked with ❌ (to be DELETED)
 - `USEFUL_TESTS`: List of test cases marked with ✅ (to be processed)
-- `NO_COVERAGE_TESTS`: List of test cases marked with ⚠️ (no coverage data available - recorded for reference only)
 
 **⚠️ STOP CONDITIONS (if ANY of these occur, STOP immediately)**:
 1. Script exit code is non-zero
-2. Output file `/tmp/<BASENAME>_redundant_check.md` does not exist
+2. Output file `/tmp/<MODULE_NAME>_redundant_check.md` does not exist
 3. Report contains failure indicators: "could not complete", "test execution issues", "failed", "error"
-4. Report explicitly states manual analysis was performed due to execution issues
 
 **When STOP condition is triggered**:
 1. Create `<TEST_FILE>_review.md` with STOP message (see OUTPUT FORMAT above)
 2. **DO NOT proceed to PHASE 1, PHASE 2, or any further processing**
-3. **DO NOT attempt to analyze test cases**
-4. **DO NOT generate coverage data**
-5. Terminate processing immediately
+3. Terminate processing immediately
 
 **Example report content**:
 ```markdown
@@ -428,12 +474,7 @@ fi
 - **Total tests:** 20
 - **Useful tests:** 14
 - **Redundant tests:** 6
-- **Tests with no coverage data:** 2
 - **Final coverage:** 12.5% (1234 lines)
-
-## Tests with No Coverage Data (0 lines or coverage unavailable)
-- ⚠️ EnhancedAotRuntimeTest.test_case_4
-- ⚠️ EnhancedAotRuntimeTest.test_case_7
 
 ## Redundant Tests (suggest to delete)
 - ❌ EnhancedAotRuntimeTest.test_case_2
@@ -444,23 +485,21 @@ fi
 - ✅ EnhancedAotRuntimeTest.test_case_3
 ```
 
-**Step 0.5.4: DO NOT delete redundant test cases in review**
-
-Record the redundant list into `<TEST_FILE>_review.md` only.
-The actual deletion is performed by `tests-fix` (single-writer rule: only fix modifies test sources).
-
-**Step 0.5.5**: (N/A in review) Rebuild is performed by `tests-fix` after applying deletions/fixes.
+**After the redundancy report is generated**:
+1. Record the redundant list into `<TEST_FILE>_review.md`
+2. Proceed to PHASE 1.5 to delete redundant tests before detailed review
 
 ### PHASE 1: Setup
 
 After PHASE 0.5 cleanup:
 
 ```bash
-# 1.1 Extract remaining test cases (redundant ones already deleted)
+# 1.1 Extract ALL test cases declared in the current file
 grep -E "^TEST_F\(|^TEST\(|^TEST_P\(" <test_file.cc> | \
   sed 's/TEST_F(\([^,]*\), *\([^)]*\)).*/\1.\2/' | head -50
 
-# TOTAL_COUNT = number of remaining tests
+# TOTAL_COUNT = number of useful (✅) tests from /tmp/<MODULE_NAME>_redundant_check.md
+# (Do NOT include redundant ❌)
 
 # 1.2 Create summary file and write cleanup report first
 # Output file: <TEST_FILE>_review.md
@@ -470,57 +509,81 @@ grep -E "^TEST_F\(|^TEST\(|^TEST_P\(" <test_file.cc> | \
 ```markdown
 # Test Review Summary: <test_file.cc>
 
-## Redundancy Cleanup (from check_redundant_tests.sh)
+## Redundancy Cleanup (from check_redundant_tests.js)
 
 - **Original tests:** N
 - **Identified (redundant):** K
 - **Remaining tests (useful):** M
-- **Tests with no coverage data:** P (if any)
 
-### Redundant Test Cases (to be deleted by `tests-fix`)
-| Test Case | Reason |
-|-----------|--------|
-| `test_case_2` | No incremental coverage contribution |
-| `test_case_5` | No incremental coverage contribution |
-
-### Tests with No Coverage Data (recorded for reference)
-| Test Case | Status |
-|-----------|--------|
-| `test_case_4` | No coverage data available (0 lines or coverage unavailable) |
-
-**Note**: Tests with no coverage data are recorded for reference only. They may indicate test execution issues, coverage collection problems, or tests that don't exercise code in target directories.
+### Redundant Test Cases (deleted in PHASE 1.5)
+| Test Case | Reason | Status |
+|-----------|--------|--------|
+| `test_case_2` | No incremental coverage contribution | ✅ Deleted |
+| `test_case_5` | No incremental coverage contribution | ✅ Deleted |
 
 ---
-## Detailed Review
-
-(Quality screening is done per test case below, not as a separate summary)
 ```
+
+(Then detailed review for each test case - quality screening is done per test case)
+
+### PHASE 1.5: Redundancy Cleanup
+
+**Goal**: Remove truly redundant tests (0 incremental coverage) identified by `check_redundant_tests.js`.
+
+**Input**: Redundant test cases marked with ❌ in `/tmp/<MODULE_NAME>_redundant_check.md` (from PHASE 0.5).
+
+**Note**: The redundancy script already verified these tests have 0 incremental coverage contribution, so deletion is safe.
+
+**Workflow**:
+
+1. **Extract test case names from redundancy report**:
+   - Parse test names marked with ❌ (format: `SuitePrefix/ClassName.TestName`)
+   - Extract only the `ClassName.TestName` part for `delete_test_cases.py`
+
+2. **Delete redundant tests in bulk**:
+   ```bash
+   python3 delete_test_cases.py <TEST_FILE_PATH> <ClassName.TestName1> <ClassName.TestName2> ...
+   
+   # Example (from report: ❌ RunningModeTest/I32ConstTest.BoundaryValues_LoadCorrectly):
+   python3 delete_test_cases.py smart-tests/constants/enhanced_i32_const_test.cc \
+       I32ConstTest.BoundaryValues_LoadCorrectly
+   ```
+
+3. **Rebuild after cleanup**:
+   ```bash
+   cmake --build build/smart-tests/<MODULE_NAME> 2>&1 | tail -15
+   ```
+
+**Record deletions in review report** (update the "Redundant Test Cases" table with Status=✅ Deleted).
 
 ### PHASE 2: Per-Test-Case Processing (SEQUENTIAL)
 
-For each TEST_CASE_NAME extracted from current file:
+For each useful test in `/tmp/<MODULE_NAME>_redundant_check.md` (marked with ✅):
+
+**Note**: The redundancy report uses format `SuitePrefix/ClassName.TestName` (e.g., `RunningModeTest/I32ConstTest.BasicConstants`). Use this name with `ctest -R` to run the test.
+
+**Parameterized tests (TEST_P)**: For parameterized tests, running with the base name will execute ALL parameter instances together (e.g., both INTERP and AOT). This is acceptable - analyze the combined coverage.
 
 #### Step 0: Progress Report (MANDATORY - DO NOT SKIP)
 
-**At the START of processing each test case, you MUST output:**
+**At the START of processing each test, you MUST output:**
 
 ```markdown
 ---
-## 📊 Processing Test Case [N/M]: <TEST_CASE_NAME>
+## 📊 Processing Test Case [N/M]: <TEST_NAME>
 ---
 ```
 
 Where:
-- N = current test case number (1, 2, 3, ...)
-- M = total test cases in this file (from PHASE 1 extraction)
+- N = current test number (1, 2, 3, ...)
+- M = total useful tests in this file
 
-**Example output sequence for a file with 20 test cases:**
+**Example output sequence:**
 ```
-📊 Processing Test Case [1/20]: EnhancedAotRuntimeTest.test_func_A
-📊 Processing Test Case [2/20]: EnhancedAotRuntimeTest.test_func_B
-📊 Processing Test Case [3/20]: EnhancedAotRuntimeTest.test_func_C
-...
-📊 Processing Test Case [20/20]: EnhancedAotRuntimeTest.test_func_T
+📊 Processing Test Case [1/4]: RunningModeTest/I32ConstTest.BasicConstantLoading_ReturnsCorrectValues
+📊 Processing Test Case [2/4]: RunningModeTest/I32ConstTest.ModuleLevelErrors_HandleGracefully
+📊 Processing Test Case [3/4]: RunningModeTest/I32ConstTest.wasm_interp_call_func_bytecode_StackOverflow_HandlesGracefully
+📊 Processing Test Case [4/4]: RunningModeTest/I32ConstTest.wasm_runtime_load_MinimalModule_HandlesCorrectly
 ```
 
 **If you skip this progress report, you are violating the protocol!**
@@ -529,12 +592,14 @@ Where:
 
 Run the test case **individually** to get its independent coverage data.
 
+**Note**: For parameterized tests, the test name from redundancy report (e.g., `RunningModeTest/I32ConstTest.TestName`) will run ALL parameter instances together. This is acceptable as we analyze the combined coverage.
+
 ```bash
 # 1.1 Clean previous coverage data
 find build/smart-tests/<MODULE_NAME> -name "*.gcda" -delete 2>/dev/null
 
-# 1.2 Run single test case
-ctest --test-dir build/smart-tests/<MODULE_NAME> -R "^<TEST_CASE_NAME>$" --output-on-failure 2>&1 | tail -30
+# 1.2 Run test case (use name from redundancy report)
+ctest --test-dir build/smart-tests/<MODULE_NAME> -R "<TEST_NAME_FROM_REPORT>" --output-on-failure 2>&1 | tail -30
 
 # 1.3 Capture and extract coverage
 lcov --capture --directory build/smart-tests/<MODULE_NAME> --output-file coverage.all.info 2>&1 | tail -3
@@ -580,10 +645,12 @@ sed -n '<start>,<end>p' /path/to/source.c
 
 ```bash
 # 3.1 Extract COMPLETE test case (use awk for accurate extraction)
-awk '/TEST_F\(<SuiteName>, <TestName>\)/,/^}$/' <test_file.cc>
+# Use TEST_F, TEST_P, or TEST depending on the test macro used
+awk '/TEST_F\(<SuiteName>, <TestName>\)/,/^}$/' <test_file.cc>    # For TEST_F
+awk '/TEST_P\(<SuiteName>, <TestName>\)/,/^}$/' <test_file.cc>    # For TEST_P
 
 # Alternative if awk doesn't work well:
-grep -B 5 -A 120 "TEST_F(<SuiteName>, <TestName>)" <test_file.cc>
+grep -B 5 -A 120 "TEST_[FP]\?(<SuiteName>, <TestName>)" <test_file.cc>
 ```
 
 **Analyze the test code to determine INTENDED purpose**:
@@ -683,6 +750,44 @@ After processing ALL test cases, append the **Path Coverage Summary** section fo
 - **FAILURE**: Error handling path lines covered  
 - **EDGE**: Boundary condition lines covered
 
+### PHASE 2.75: Static Analysis (clang-tidy)
+
+**Goal**: Run static analysis on the test file to identify code quality issues, potential bugs, and style violations.
+
+**Important**: Use a SEPARATE build directory (`build-clang`) to avoid overwriting the coverage build configuration.
+
+**Workflow**:
+
+1. **Configure with clang toolchain in separate directory**:
+   ```bash
+   cmake -S . -B build-clang \
+     --toolchain ../fuzz/wasm-mutator-fuzz/clang_toolchain.cmake \
+     -DCMAKE_EXPORT_COMPILE_COMMANDS=On 2>&1 | tail -10
+   ```
+
+2. **Run clang-tidy on the test file**:
+   ```bash
+   clang-tidy -p build-clang <TEST_FILE_PATH> 2>&1 | tail -200
+   ```
+
+3. **Record results in review report**:
+   - If no warnings/errors: write "No issues found"
+   - If issues found: list each warning/error with file:line and description
+
+**Output format** (append to review.md):
+```markdown
+## Static Analysis (clang-tidy)
+
+| Line | Category | Message |
+|------|----------|---------|
+| 42 | bugprone-narrowing-conversions | narrowing conversion from 'uint32' to 'int32' |
+| 156 | readability-convert-member-functions-to-static | method 'foo' can be made static |
+
+**Summary**: N warnings, M errors
+```
+
+**Note**: Static analysis issues are for information only in review phase. Fixes are applied by `tests-fix` agent.
+
 ### PHASE 3: Finish
 
 - Output `<TEST_FILE>_review.md` is ready
@@ -709,15 +814,14 @@ After processing ALL test cases, append the **Path Coverage Summary** section fo
 ## Constraints
 
 ### MUST DO
-- **MANDATORY: Run `./check_redundant_tests.sh` FIRST for each test file**
+- **MANDATORY: Run `node check_redundant_tests.js <MODULE_NAME> <TEST_FILE_PATH>` FIRST for each test file**
 - **⚠️ MANDATORY: Check script exit code and output - if Redundancy Cleanup fails, STOP immediately**
 - **⚠️ MANDATORY: If Redundancy Cleanup cannot execute, write STOP message to review report and TERMINATE processing**
-- **MANDATORY: Read and parse `/tmp/<BASENAME>_redundant_check.md` to get redundant test list (only if script succeeded)**
-- **MANDATORY: Parse and record tests with no coverage data from the redundancy report (marked with ⚠️)**
-- **MANDATORY: Record redundant test list in the review report (diagnostic only)**
-- **MANDATORY: Record tests with no coverage data in the review report (for reference only, no action required)**
+- **MANDATORY: Read and parse `/tmp/<MODULE_NAME>_redundant_check.md` to get redundant test list (only if script succeeded)**
+- **MANDATORY: Record redundant test list in the review report**
+- **MANDATORY: Execute PHASE 1.5 to delete redundant tests using `python3 delete_test_cases.py`**
 - **MANDATORY: Write cleanup report section to summary file BEFORE detailed reviews**
-- Process ALL remaining test cases sequentially (only if Redundancy Cleanup succeeded)
+- Process ALL useful (✅, non-redundant) test cases sequentially (only if Redundancy Cleanup succeeded)
 - **MANDATORY: Output progress "📊 Processing Test Case [N/M]" at START of each test case**
 - Use `| tail -N` or `| head -N` on ALL terminal commands
 - Record coverage immediately after generation
@@ -725,14 +829,14 @@ After processing ALL test cases, append the **Path Coverage Summary** section fo
 
 ### MUST NOT DO
 - Trust line number references in comments
-- **NEVER skip running check_redundant_tests.sh**
+- **NEVER skip running `node check_redundant_tests.js`**
 - **⚠️ NEVER continue processing if Redundancy Cleanup fails - STOP immediately**
 - **⚠️ NEVER proceed to PHASE 1 or PHASE 2 if Redundancy Cleanup cannot execute**
-- Modify test source files in review (all modifications must happen in `tests-fix`)
+- **NEVER modify test source files EXCEPT for deleting redundant tests in PHASE 1.5**
 - **NEVER batch-verify or summarize multiple test cases together**
 - **NEVER jump to Path Coverage Summary before processing ALL remaining test cases**
 - Read entire test files into context
-- Run cmake configure more than once per session
+- Run cmake configure for `build` directory more than once per session (build-clang is separate)
 
 ## Quick Reference
 
@@ -741,9 +845,15 @@ After processing ALL test cases, append the **Path Coverage Summary** section fo
 cd ~/zhenwei/wasm-micro-runtime/tests/unit
 
 # Key commands (always use | tail -N to limit output)
-./check_redundant_tests.sh <MODULE> <TEST_FILE_PATH>        # Redundancy detection (diagnostic)
-cmake --build build/smart-tests/<MODULE> 2>&1 | tail -10    # Rebuild
+cmake --build build/smart-tests/<MODULE> 2>&1 | tail -15    # Build module (REQUIRED before redundancy check)
+node check_redundant_tests.js <MODULE> <TEST_FILE_PATH>     # Redundancy detection (gets test cases from ctest)
+python3 delete_test_cases.py <TEST_FILE> <SuiteName.TestName1> <SuiteName.TestName2>... # Delete redundant tests
+cmake --build build/smart-tests/<MODULE> 2>&1 | tail -10    # Rebuild after deletion
 ctest --test-dir build/smart-tests/<MODULE> -R "^<TEST>$"   # Run single test
 lcov --capture --directory build/smart-tests/<MODULE> -o coverage.info  # Capture coverage
-awk '/TEST_F\(Suite, Test\)/,/^}$/' file.cc                 # Extract test code
+awk '/TEST_[FP]\(Suite, Test\)/,/^}$/' file.cc              # Extract test code (TEST_F or TEST_P)
+
+# Static analysis (PHASE 2.75) - uses separate build directory
+cmake -S . -B build-clang --toolchain ../fuzz/wasm-mutator-fuzz/clang_toolchain.cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=On
+clang-tidy -p build-clang <TEST_FILE_PATH> 2>&1 | tail -200 # Run clang-tidy
 ```
