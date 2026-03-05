@@ -59,33 +59,33 @@ model_name: main
 
 ---
 
-## Test Case [1/M]: SuitePrefix/ClassName.TestName
+## Test Case [1/M]: ClassName.TestName
 
 **File**: `smart-tests/module/test_file.cc`
-**Lines**: 45-72
-**Parameterized**: Yes (INTERP, AOT) / No
+**Start line**: <MANDATORY: obtain by running `node get_func_start_line.js <TEST_FILE_PATH> <TestCaseName>`; use the single line number output>
+**Parameterized**: Yes / No
 
 ### Coverage
 - Lines: X.X% (N/M)
 - Functions: X.X% (N/M)
-
-### Real Testing Purpose (from coverage - what IS actually tested)
-
-**Target function** (from FNDA): `function_name` in `source_file.c`
-
-**Line coverage** (MUST include specific line numbers):
-- Covered: 5583, 5589-5594, 5643 (list ALL covered lines in target function)
-- Uncovered: 5595-5642 (list key uncovered lines)
-
-**Actual code path**: <description of what the covered lines actually do>
-
-**Path type** (from coverage): SUCCESS / FAILURE / EDGE
 
 ### Expected Testing Purpose (from test code - what AI INTENDED to test)
 
 **Intended target**: `function_name`
 **Intended scenario**: <what test tries to set up; if parameterized, include Param (e.g., INTERP/LLVM_JIT) and how it changes behavior>
 **Intended outcome**: <what assertions expect>
+
+### Real Testing Purpose (from coverage - what IS actually tested)
+
+**Target functions** (from FNDA, guided by Expected Purpose above):
+- `function_name_1` in `source_file_1.c` (e.g., AOT mode)
+- `function_name_2` in `source_file_2.c` (e.g., INTERP mode)
+
+**Uncovered paths** (from coverage-summary.md): <key uncovered branches marked with `!` in summary>
+
+**Actual code path**: <description of what the covered lines actually do>
+
+**Path type** (from coverage): SUCCESS / FAILURE / EDGE
 
 ### Alignment: YES / NO
 
@@ -133,6 +133,8 @@ List quality issues found in this specific test case:
 
 ## Enhancement Recommendations
 
+> **Note**: These recommendations are preserved for future reference. The fix agent will **NOT** implement them at this time — there may already be other test files covering the same paths. They serve as a backlog for future coverage improvements.
+
 **MANDATORY: For EACH function with ⚠️ or ❌ status, suggest specific test cases for missing paths.**
 
 ### `func_name2` - Missing EDGE path
@@ -170,14 +172,14 @@ List quality issues found in this specific test case:
 
 **MANDATORY RULES:**
 1. You MUST analyze EACH test case individually with [N/M] numbering
-2. You MUST include Real vs Expected purpose for EACH test case
+2. You MUST analyze **Expected Purpose FIRST** (from test code), then **Real Purpose** (from coverage) — this order provides context for coverage interpretation
 3. You MUST have explicit `Alignment: YES` or `Alignment: NO` for EACH test case (use STRICT criteria!)
 4. You MUST generate Path Coverage Summary table at the END
 5. You MUST suggest specific new test cases for missing paths
-6. **Line coverage MUST include specific line numbers** (e.g., "Covered: 5583, 5589-5594"), NOT vague percentages like "~0.5%"
+6. **For parameterized tests (TEST_P)**: Identify target functions for ALL parameter modes (e.g., both INTERP and AOT), not just the most prominent FNDA entry
 7. **Alignment: NO if the test case name is inconsistent with the covered path**
 8. **You MUST generate Quality Issues Summary table** (consolidating all quality issues from per-test Quality Screening)
-9. **Parameterized tests (TEST_P)**: Note if test is parameterized, analyze combined coverage from all instances
+9. **Use coverage-summary.md** for uncovered path analysis instead of raw line numbers
 
 ---
 
@@ -208,12 +210,11 @@ List quality issues found in this specific test case:
 │    → Write STOP message to review report                            │
 │    → TERMINATE processing immediately                               │
 │    → DO NOT proceed to PHASE 1 or PHASE 2                           │
-│  - IF SUCCESS:                                                       │
-│    → Read: /tmp/<MODULE_NAME>_redundant_check.md                     │
+│  - IF SUCCESS:                                                      │
+│    → Read: /tmp/<MODULE_NAME>_redundant_check.md                    │
 │    → Parse redundant tests list → REDUNDANT_TESTS                   │
 │    → Record redundant tests list in review report                   │
 │    → Continue to PHASE 1                                            │
-│  - Do NOT modify source file here (deletion happens in `tests-fix`) │
 └─────────────────────────────────────────────────────────────────────┘
                                    │
                         ┌──────────┴──────────┐
@@ -254,8 +255,9 @@ List quality issues found in this specific test case:
 ┌─────────────────────────────────────────────────────────────────────┐
 │  PHASE 2: FOR EACH TEST in USEFUL_TESTS (SEQUENTIAL)                │
 │  - Step 1: Generate coverage                                        │
-│  - Step 2: Analyze REAL purpose (from coverage - what IS tested)    │
-│  - Step 3: Analyze EXPECTED purpose (from code - what AI INTENDED)  │
+│  - Step 1.5: Generate focused coverage summary                      │
+│  - Step 2: Analyze EXPECTED purpose (from code - what AI INTENDED)  │
+│  - Step 3: Analyze REAL purpose (from coverage - what IS tested)    │
 │  - Step 4: Compare real vs expected + Classify path type            │
 │  - Step 5: Write entry to review report                             │
 │  - PROCESSED_COUNT += 1                                             │
@@ -405,7 +407,7 @@ cd ~/zhenwei/wasm-micro-runtime/tests/unit
 cmake -S . -B build -DCOLLECT_CODE_COVERAGE=1 2>&1 | tail -10
 
 # 0.3 Build the module (REQUIRED before check_redundant_tests.js)
-cmake --build build/smart-tests/<MODULE_NAME> 2>&1 | tail -15
+cmake --build build/smart-tests/<MODULE_NAME> --parallel 2>&1 | tail -15
 ```
 
 ### PHASE 0.5: Redundancy Detection
@@ -494,14 +496,10 @@ fi
 After PHASE 0.5 cleanup:
 
 ```bash
-# 1.1 Extract ALL test cases declared in the current file
-grep -E "^TEST_F\(|^TEST\(|^TEST_P\(" <test_file.cc> | \
-  sed 's/TEST_F(\([^,]*\), *\([^)]*\)).*/\1.\2/' | head -50
-
 # TOTAL_COUNT = number of useful (✅) tests from /tmp/<MODULE_NAME>_redundant_check.md
 # (Do NOT include redundant ❌)
 
-# 1.2 Create summary file and write cleanup report first
+# Create summary file and write cleanup report first
 # Output file: <TEST_FILE>_review.md
 ```
 
@@ -537,21 +535,21 @@ grep -E "^TEST_F\(|^TEST\(|^TEST_P\(" <test_file.cc> | \
 **Workflow**:
 
 1. **Extract test case names from redundancy report**:
-   - Parse test names marked with ❌ (format: `SuitePrefix/ClassName.TestName`)
+   - Parse test names marked with ❌
    - Extract only the `ClassName.TestName` part for `delete_test_cases.py`
 
 2. **Delete redundant tests in bulk**:
    ```bash
    python3 delete_test_cases.py <TEST_FILE_PATH> <ClassName.TestName1> <ClassName.TestName2> ...
    
-   # Example (from report: ❌ RunningModeTest/I32ConstTest.BoundaryValues_LoadCorrectly):
+   # Example (from report: ❌ I32ConstTest.BoundaryValues_LoadCorrectly):
    python3 delete_test_cases.py smart-tests/constants/enhanced_i32_const_test.cc \
        I32ConstTest.BoundaryValues_LoadCorrectly
    ```
 
 3. **Rebuild after cleanup**:
    ```bash
-   cmake --build build/smart-tests/<MODULE_NAME> 2>&1 | tail -15
+   cmake --build build/smart-tests/<MODULE_NAME> --parallel 2>&1 | tail -15
    ```
 
 **Record deletions in review report** (update the "Redundant Test Cases" table with Status=✅ Deleted).
@@ -559,10 +557,6 @@ grep -E "^TEST_F\(|^TEST\(|^TEST_P\(" <test_file.cc> | \
 ### PHASE 2: Per-Test-Case Processing (SEQUENTIAL)
 
 For each useful test in `/tmp/<MODULE_NAME>_redundant_check.md` (marked with ✅):
-
-**Note**: The redundancy report uses format `SuitePrefix/ClassName.TestName` (e.g., `RunningModeTest/I32ConstTest.BasicConstants`). Use this name with `ctest -R` to run the test.
-
-**Parameterized tests (TEST_P)**: For parameterized tests, running with the base name will execute ALL parameter instances together (e.g., both INTERP and AOT). This is acceptable - analyze the combined coverage.
 
 #### Step 0: Progress Report (MANDATORY - DO NOT SKIP)
 
@@ -580,10 +574,10 @@ Where:
 
 **Example output sequence:**
 ```
-📊 Processing Test Case [1/4]: RunningModeTest/I32ConstTest.BasicConstantLoading_ReturnsCorrectValues
-📊 Processing Test Case [2/4]: RunningModeTest/I32ConstTest.ModuleLevelErrors_HandleGracefully
-📊 Processing Test Case [3/4]: RunningModeTest/I32ConstTest.wasm_interp_call_func_bytecode_StackOverflow_HandlesGracefully
-📊 Processing Test Case [4/4]: RunningModeTest/I32ConstTest.wasm_runtime_load_MinimalModule_HandlesCorrectly
+📊 Processing Test Case [1/4]: I32ConstTest.BasicConstantLoading_ReturnsCorrectValues
+📊 Processing Test Case [2/4]: I32ConstTest.ModuleLevelErrors_HandleGracefully
+📊 Processing Test Case [3/4]: I32ConstTest.wasm_interp_call_func_bytecode_StackOverflow_HandlesGracefully
+📊 Processing Test Case [4/4]: I32ConstTest.wasm_runtime_load_MinimalModule_HandlesCorrectly
 ```
 
 **If you skip this progress report, you are violating the protocol!**
@@ -611,40 +605,31 @@ lcov --summary coverage.info 2>&1
 
 **Record**: Extract line% and function% from summary.
 
-#### Step 2: Analyze Real Testing Purpose (From Coverage Data)
+#### Step 1.5: Generate Focused Coverage Summary
 
-**Goal**: Determine EXACTLY which source code lines/functions were executed.
-
-**CRITICAL**: Real testing purpose comes from ACTUAL coverage data, NOT from test names!
+**Goal**: Transform raw `coverage.info` into a focused, structured report that highlights only the functions relevant to this test case.
 
 ```bash
-# 2.1 Extract coverage for target source file
-awk '/^SF:.*aot_runtime\.c$/,/^end_of_record$/' coverage.info > /tmp/target.info
-
-# 2.2 Get covered/uncovered lines
-grep "^DA:" /tmp/target.info | grep -v ",0$" | cut -d: -f2 | cut -d, -f1 | sort -n  # Covered
-grep "^DA:.*,0$" /tmp/target.info | cut -d: -f2 | cut -d, -f1 | sort -n              # Uncovered
-
-# 2.3 Get called functions (FNDA > 0)
-grep "^FNDA:" /tmp/target.info | grep -v "^FNDA:0," | head -10
-
-# 2.4 Read source code to understand covered paths
-sed -n '<start>,<end>p' /path/to/source.c
+# Generate focused summary using the test file for context
+node filter_coverage.js coverage.info . --test-file <TEST_FILE_PATH>
 ```
 
-**Determine**:
-- Which code path was executed? (success/error/edge case)
-- What was actually tested vs what the test name claims?
-- What was NOT tested? (uncovered lines)
+This produces `coverage-summary.md` with:
+- **Section 1: Direct API Functions** — functions the test code directly calls (e.g., `wasm_runtime_lookup_function`), with uncovered branch analysis
+- **Section 2: Inferred Compilation Targets** — functions inferred from the test name / wasm opcode (e.g., `aot_compile_op_f32_const`), with uncovered branch analysis
+- **Section 3: Setup/Teardown** — brief summary of lifecycle functions
+- **Section 4: Overall Stats** — total coverage numbers
 
-#### Step 3: Analyze Expected Testing Purpose (From Test Code Content)
+**Use `coverage-summary.md` as the PRIMARY source for Step 3 (Real Testing Purpose) analysis.** It replaces manual `awk`/`grep` extraction of `coverage.info`.
 
-**Goal**: Determine what the test INTENDS to test by analyzing the test code itself.
+#### Step 2: Analyze Expected Testing Purpose (From Test Code Content)
 
-**NOTE**: Since all tests are AI-generated, the test code reflects what the AI WANTED to test, but may not achieve that goal. Step 2 (coverage) reveals what was ACTUALLY tested.
+**Goal**: Determine what the test INTENDS to test by analyzing the test code itself. This MUST be done BEFORE analyzing coverage, so you have full context for interpreting coverage data.
+
+**NOTE**: Since all tests are AI-generated, the test code reflects what the AI WANTED to test, but may not achieve that goal. Step 3 (coverage) reveals what was ACTUALLY tested.
 
 ```bash
-# 3.1 Extract COMPLETE test case (use awk for accurate extraction)
+# 2.1 Extract COMPLETE test case (use awk for accurate extraction)
 # Use TEST_F, TEST_P, or TEST depending on the test macro used
 awk '/TEST_F\(<SuiteName>, <TestName>\)/,/^}$/' <test_file.cc>    # For TEST_F
 awk '/TEST_P\(<SuiteName>, <TestName>\)/,/^}$/' <test_file.cc>    # For TEST_P
@@ -660,6 +645,7 @@ grep -B 5 -A 120 "TEST_[FP]\?(<SuiteName>, <TestName>)" <test_file.cc>
 - **API calls**: Which functions does the test INTEND to exercise?
 - **Assertions**: What outcomes does the test EXPECT to verify?
 - **Mock/stub usage**: What paths is the test trying to trigger?
+- **Parameterized (TEST_P)**: What modes does `GetParam()` select? (e.g., INTERP vs AOT) — each mode exercises DIFFERENT source functions
 
 **Example analysis**:
 ```cpp
@@ -683,11 +669,64 @@ Expected purpose (from code):
 
 **IMPORTANT**: 
 - Do NOT trust line number references in comments (may be outdated)
-- The test code shows INTENT, but coverage (Step 2) shows REALITY
+- The test code shows INTENT, but coverage (Step 3) shows REALITY
+- **For parameterized tests**: note ALL intended target functions across ALL modes (e.g., `aot_compile_op_i32_const` for AOT mode AND the interpreter dispatch function for INTERP mode)
+
+#### Step 3: Analyze Real Testing Purpose (From Coverage Data)
+
+**Goal**: Determine EXACTLY which source code paths were executed, focusing on functions relevant to the test's purpose.
+
+**CRITICAL**: Real testing purpose comes from ACTUAL coverage data, NOT from test names!
+
+**⚠️ Use Expected Purpose from Step 2 to GUIDE your coverage analysis** — especially for parameterized tests, look for target functions in ALL modes identified in Step 2.
+
+**Primary input**: Read `coverage-summary.md` (generated in Step 1.5).
+
+```bash
+# 3.1 Read the focused coverage summary
+cat coverage-summary.md
+```
+
+**How to interpret `coverage-summary.md`**:
+
+The summary shows uncovered branches with source code snippets marked with `!`:
+```
+Lines 72-80 (**BRANCH**):
+  71:     if (comp_ctx->is_indirect_mode
+! 72:         && aot_intrinsic_check_capability(comp_ctx, "f32.const")) {
+! 75:         value = aot_load_const_from_table(comp_ctx, ...);
+```
+Lines marked with `!` are **NOT covered** — these represent untested paths.
+
+**⚠️ IMPORTANT: Connecting coverage to test purpose**
+
+The coverage summary shows which paths were/weren't executed, but the call chain from test code to these paths can be long. You MUST connect the dots:
+
+1. **Start from Expected Purpose (Step 2)**: What does the test do? What modes does it cover?
+2. **Trace the call chain**: test → `wasm_runtime_call_wasm_a` → interpreter/JIT → target function
+3. **Match to coverage for ALL modes**: For parameterized tests, check coverage for EACH mode's target function (e.g., AOT compilation function AND interpreter dispatch function)
+4. **Identify untested paths**: `!` lines show branches the test didn't trigger (e.g., error paths, indirect mode)
+
+**For each function in the summary, determine**:
+- Was the SUCCESS path (normal execution) covered?
+- Were FAILURE paths (error returns, `goto fail`) covered?
+- Were EDGE paths (boundary conditions, null checks) covered?
+
+**If you need more detail** beyond what `coverage-summary.md` provides:
+```bash
+# Fallback: Extract raw coverage for a specific source file
+awk '/^SF:.*<source_file>$/,/^end_of_record$/' coverage.info > /tmp/target.info
+grep "^DA:" /tmp/target.info | grep -v ",0$" | head -30  # Covered lines
+```
+
+**Determine**:
+- Which code path was executed? (success/error/edge case)
+- What was actually tested vs what the test name claims?
+- What was NOT tested? (lines marked with `!` in summary)
 
 #### Step 4: Compare Real vs Expected Purpose + Classify Path Type
 
-**4.1 Alignment Check**: Compare REAL purpose (Step 2, from coverage) vs EXPECTED purpose (Step 3, from test code)
+**4.1 Alignment Check**: Compare REAL purpose (Step 3, from coverage) vs EXPECTED purpose (Step 2, from test code)
 
 **⚠️ STRICT ALIGNMENT CRITERIA - ALL must match:**
 1. **Path Type Match**: Test name's implied path type MUST match actual covered path type
@@ -713,7 +752,7 @@ Expected purpose (from code):
 
 **4.2 Path Type Classification** (from REAL coverage, NOT from test code):
 
-Classify based on ACTUAL code path covered (from Step 2 analysis):
+Classify based on ACTUAL code path covered (from Step 3 analysis):
 
 | Actual Code Path Covered | Path Type |
 |-------------------------|-----------|
@@ -725,19 +764,30 @@ Classify based on ACTUAL code path covered (from Step 2 analysis):
 
 **4.3 Target Function Identification** (from REAL coverage):
 
-From Step 2 FNDA data, identify the PRIMARY function being tested:
-- The function with highest hit count (FNDA > 0)
-- The function whose internal code paths were exercised
-- This may differ from the function mentioned in test name
+From Step 3 FNDA data, guided by Expected Purpose (Step 2), identify target functions:
+- For parameterized tests: identify target functions for EACH mode (e.g., AOT compilation function + interpreter function)
+- For non-parameterized tests: the function with highest hit count (FNDA > 0)
+- These may differ from the function mentioned in test name
 
 #### Step 5: Write Entry to Summary
 
-**Append entry to `<TEST_FILE>_review.md`** following the EXACT format shown in the "CRITICAL: OUTPUT FORMAT" section at the top of this document.
+**Before writing each test case block**, obtain the exact start line for that test:
+
+```bash
+node get_func_start_line.js <TEST_FILE_PATH> <TestCaseName>
+```
+
+- Run from working directory `tests/unit`. `<TEST_FILE_PATH>` is the relative path to the .cc file (e.g. `smart-tests/constants/enhanced_f32_const_test.cc`). `<TestCaseName>` is the test name for this case (e.g. `F32ConstTest.BasicConstants_ReturnsCorrectValues` or the full name from the redundancy report such as `RunningModeTest/F32ConstTest.BasicConstants_ReturnsCorrectValues`).
+- The script prints a single line number (the 1-based line where `TEST_F`/`TEST_P`/`TEST` for that case appears). Use this value for **Start line** in the review entry.
+- If the script exits non-zero (case not found), write **Start line**: unknown.
+
+**Then append entry to `<TEST_FILE>_review.md`** following the EXACT format shown in the "CRITICAL: OUTPUT FORMAT" section at the top of this document.
 
 **Output Format Rules**:
 1. If `Alignment: YES` → Do NOT include Recommendations section (save tokens)
 2. If `Alignment: NO` → MUST include specific fix recommendation
-3. Always include line numbers for test case location
+3. **Start line** MUST come from `get_func_start_line.js` output (not guessed); if script fails, use "unknown"
+4. Always include line numbers for test case location in coverage sections
 
 ### PHASE 2.5: Path Coverage Summary
 
@@ -848,9 +898,12 @@ cd ~/zhenwei/wasm-micro-runtime/tests/unit
 cmake --build build/smart-tests/<MODULE> 2>&1 | tail -15    # Build module (REQUIRED before redundancy check)
 node check_redundant_tests.js <MODULE> <TEST_FILE_PATH>     # Redundancy detection (gets test cases from ctest)
 python3 delete_test_cases.py <TEST_FILE> <SuiteName.TestName1> <SuiteName.TestName2>... # Delete redundant tests
+node get_func_start_line.js <TEST_FILE_PATH> <TestCaseName>  # Get start line for test (Step 5; output = one line number)
 cmake --build build/smart-tests/<MODULE> 2>&1 | tail -10    # Rebuild after deletion
 ctest --test-dir build/smart-tests/<MODULE> -R "^<TEST>$"   # Run single test
 lcov --capture --directory build/smart-tests/<MODULE> -o coverage.info  # Capture coverage
+node filter_coverage.js coverage.info . --test-file <TEST_FILE_PATH>   # Generate focused coverage summary → coverage-summary.md
+cat coverage-summary.md                                      # Read focused coverage report (use instead of raw coverage.info)
 awk '/TEST_[FP]\(Suite, Test\)/,/^}$/' file.cc              # Extract test code (TEST_F or TEST_P)
 
 # Static analysis (PHASE 2.75) - uses separate build directory

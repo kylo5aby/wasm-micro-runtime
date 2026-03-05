@@ -69,22 +69,6 @@ model_name: main
 
 ---
 
-## Phase 2: New Test Cases
-
-### Exploration Summary
-- Searched for patterns: [brief description of what patterns were found]
-- Referenced tests: [list of similar tests that were examined]
-
-| Test Case | Target Function | Path Type | Result | Reason/Coverage |
-|-----------|-----------------|-----------|--------|-----------------|
-| `new_test_1` | `func_a` | SUCCESS | ✅ ADDED | +12 lines |
-| `new_test_2` | `func_b` | FAILURE | ⏭️ SKIPPED | 0 new lines after build |
-| `new_test_3` | `func_c` | EDGE | ⏭️ SKIPPED | Build error: undefined reference to func_c_internal |
-
-**Note**: NEVER write "No new test cases added" without attempting each suggestion individually.
-
----
-
 ## Summary
 
 | Category | Count |
@@ -92,19 +76,14 @@ model_name: main
 | Quality Fixes | N |
 | Static Analysis Fixes | N |
 | Alignment Fixes | N |
-| New Tests Added | N |
-| Tests Skipped | N |
 
 ## Results Detail
 
 ### ✅ Fixed
 - `test_1` → `test_1_renamed`: Renamed for clarity
 
-### ✅ Added
-- `new_test_1`: Adds SUCCESS path for func_a
-
 ### ⏭️ Skipped
-- `new_test_2`: No coverage contribution
+- `test_2`: Needs redesign
 ```
 
 **MANDATORY RULES:**
@@ -121,9 +100,10 @@ model_name: main
 **PRIMARY INPUT**: A `*_review.md` file (output from review agent) containing:
 1. Test case reviews with `Alignment: YES/NO` status
 2. `Recommendations` section for tests with `Alignment: NO`
-3. `Enhancement Recommendations` with suggested new test cases
-4. `Quality Screening` section (diagnostic issues per test case)
-5. `Static Analysis` section (clang-tidy warnings/errors)
+3. `Quality Screening` section (diagnostic issues per test case)
+4. `Static Analysis` section (clang-tidy warnings/errors)
+
+> **Note**: The review report also contains `Enhancement Recommendations` with suggested new test cases. These are preserved for future reference but are **NOT implemented** by the fix agent at this time.
 
 **OPTIONAL INPUT (for RE-FIX mode)**:
 - Previous `*_fix.md` file (context of what was already attempted)
@@ -181,23 +161,8 @@ If `*_verify.md` is not provided, locate it automatically in the same directory 
                                    │
                                    ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│  PHASE 2: GENERATE NEW TEST CASES (from Enhancement Recommendations)│
-│  ⚠️ MANDATORY: Attempt EVERY suggestion, no batch skipping          │
-│  - For each suggested test case:                                    │
-│    - Step 1: Explore patterns (Grep similar tests, Read examples)   │
-│    - Step 2: Generate test code following discovered patterns       │
-│    - Step 3: Append to file and rebuild                              │
-│    - Step 4: Verify ctest execution (must pass with no failures)     │
-│    - Step 5: Verify coverage contribution (python3 is_test_case_...) │
-│    - Step 6: Accept (if ctest passes AND coverage+) or SKIP          │
-│  - Document exploration summary and per-test results                │
-│  - FORBIDDEN: Skipping all tests with "too complex" excuse          │
-└─────────────────────────────────────────────────────────────────────┘
-                                   │
-                                   ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  PHASE 3: FINAL REPORT                                              │
-│  - Run: ./get_coverage.sh <TEST_FILE_PATH>            │
+│  PHASE 2: FINAL REPORT                                              │
+│  - Run: ./get_coverage.sh <TEST_FILE_PATH>                          │
 │  - Calculate coverage change and generate summary                   │
 │  - HARD GATE: Final coverage MUST be >= Initial coverage            │
 │    (otherwise REVERT last accepted changes and mark as FAILED)      │
@@ -307,28 +272,6 @@ cmake --build build/smart-tests/<MODULE_NAME> 2>&1 | tail -15
 
 ---
 
-### RE-FIX Mode (Closed-Loop Iteration)
-
-When invoked for RE-FIX (typically because Compliance < 100% in `*_verify.md`):
-
-1. Read verify report → find items marked ❌ Non-compliant or 🔍 Missing
-2. Read previous fix report → understand what was already attempted
-3. Focus ONLY on non-compliant items
-4. APPEND new entries to fix report (do not overwrite)
-
-**Add RE-FIX section to output**:
-```markdown
----
-## RE-FIX Iteration N
-
-**Triggered by**: Compliance < 100%
-**Non-compliant items**: N
-
-| Item | Verify Issue | Action | Result |
-|------|--------------|--------|--------|
-| test_1 | Not renamed | Renamed | ✅ |
-```
-
 ### PHASE 1: Fix Alignment Issues
 
 For each test with `Alignment: NO` in review:
@@ -351,118 +294,33 @@ For each test with `Alignment: NO` in review:
 
 **Record each fix in output document's Phase 1 section.**
 
-### PHASE 2: Generate New Test Cases
-
-**⚠️ MANDATORY BEHAVIOR - NO BATCH SKIPPING ALLOWED**
-
-You MUST attempt to generate EVERY suggested test case from review. NEVER skip entire Phase 2 with generic excuses.
-
-**Required workflow for EACH suggested test:**
-
-**Step 1: Pattern Exploration (MANDATORY)**
-- Use Grep to search for similar test patterns in the same test file
-- Use Grep to search for similar test patterns in other test files in the module
-- Read at least 2 similar existing tests to understand the setup pattern
-- Document the pattern found (e.g., "Found AOTModule setup pattern in enhanced_aot_runtime_test.cc:47-60")
-
-**Step 2: Code Generation**
-- Generate test code following the patterns discovered in Step 1
-- Reuse existing helper structures, fixtures, and utility functions
-- If the suggested test requires data (e.g., AOT module bytes):
-  - Search for existing data files: `find . -name "*.aot" -o -name "*_aot.h"`
-  - Check if other tests in the file use embedded byte arrays or external files
-  - Reuse existing test data when possible
-
-**Step 3: Implementation**
-1. **Generate** test code following discovered patterns
-2. **Append** to test file
-3. **Rebuild**: `cmake --build build/smart-tests/<MODULE_NAME> 2>&1 | tail -10`
-4. If build fails: **delete the test immediately** using `python3 delete_test_cases.py`, document error and mark as ⏭️ SKIPPED
-
-**Step 4: Verify ctest execution**
-- Run: `ctest --test-dir build/smart-tests/<MODULE_NAME> -R "<TEST_CASE_NAME>" --output-on-failure`
-- **⚠️ MANDATORY**: Check exit code and output - test must execute successfully with NO failures
-- **Note**: `<TEST_CASE_NAME>` is the specific new test case name (e.g., `F32ConstTest.NewTestName`), not the class name
-- If ctest fails: **delete the test immediately** using `python3 delete_test_cases.py`, document specific error and mark as ⏭️ SKIPPED
-
-**Step 5: Verify coverage contribution**
-- Run: `python3 is_test_case_useful.py <TEST_FILE_PATH> <SuiteName.TestName>`
-- **Note**: Use `SuiteName.TestName` format (e.g., `F32ConstTest.NewTestName`)
-- **⚠️ MANDATORY**: Test must contribute to coverage (new lines > 0)
-
-**Step 6: Accept/Reject Decision**
-- Coverage improved (new lines > 0) AND ctest passes (no failures) AND overall gate not dropped → ✅ ADDED
-- No coverage contribution after implementation → ⏭️ SKIPPED (**MUST delete test case immediately**)
-- ctest fails (test execution errors) → ⏭️ SKIPPED (**MUST delete test case immediately**)
-- Build fails with technical blocker → ⏭️ SKIPPED (**MUST delete test case immediately**)
-
-**⚠️ CRITICAL: Deletion of SKIPPED Tests**
-
-When a new test case is marked as SKIPPED, you **MUST immediately delete it** before proceeding to the next test. Use:
-
-```bash
-python3 delete_test_cases.py <TEST_FILE_PATH> <SuiteName.TestName>
-```
-
-**Why this is mandatory:**
-1. Leaving SKIPPED tests in the file causes compilation errors (duplicate definitions)
-2. If fix agent runs multiple times, duplicate tests accumulate
-3. SKIPPED means "rejected" - the test code should not remain in the file
-
-**Step 7: Documentation**
-Record each new test in output document's Phase 2 table with:
-- Test name
-- Result (✅ ADDED / ⏭️ SKIPPED)
-- If SKIPPED: specific technical reason (see valid reasons below)
-
 ---
 
-**VALID Skip Reasons (specific technical blockers only):**
+### RE-FIX Mode (Closed-Loop Iteration)
 
-✅ **Acceptable SKIP reasons:**
-- "Requires mocking runtime_malloc, no mock framework configured in CMakeLists.txt"
-- "Build fails: undefined reference to aot_internal_function (not exported)"
-- "ctest fails: [specific error message from ctest output]"
-- "Coverage verification shows 0 new lines covered after successful build and ctest pass"
-- "Requires external .aot file not present in wasm-apps directory"
-- "Function signature not found in any header file (grep returned no results)"
+When invoked for RE-FIX (triggered by pipeline because Compliance < 100% in `*_verify.md`):
 
-❌ **INVALID Skip Reasons (too vague, not allowed):**
-- "Too complex" → Must specify WHAT is complex
-- "Requires AOT module setup" → Must ATTEMPT using existing patterns first
-- "Beyond simple fixes" → Phase 2 is ABOUT adding new code
-- "Need more investigation" → You must investigate NOW, not skip
-- Skipping entire Phase 2 without trying individual tests → FORBIDDEN
+1. Read verify report → find items marked ❌ Non-compliant or 🔍 Missing
+2. Read previous fix report → understand what was already attempted
+3. Focus ONLY on non-compliant items
+4. APPEND new entries to fix report (do not overwrite)
 
----
-
-**Example Phase 2 output (GOOD):**
-
+**Add RE-FIX section to output**:
 ```markdown
-## Phase 2: New Test Cases
+---
+## RE-FIX Iteration N
 
-### Exploration Summary
-- Searched for AOTModule setup patterns: Found in enhanced_aot_runtime_test.cc:47-48
-- Searched for AOT test data: Found test_aot.h in ../aot-stack-frame/wasm-apps/
-- Read similar test: enhanced_aot_runtime_test.cc:45-80 (shows AOTModule initialization)
+**Triggered by**: Compliance < 100%
+**Non-compliant items**: N
 
-| Test Case | Target Function | Action Taken | Result | Reason |
-|-----------|-----------------|--------------|--------|--------|
-| `aot_get_global_addr_InvalidGlobalIndex` | `aot_get_global_addr` | Generated, built, verified | ✅ ADDED | +15 lines coverage |
-| `aot_set_aux_stack_ValidStackSize` | `aot_set_aux_stack` | Generated, built, verified | ⏭️ SKIPPED | 0 new lines (function already fully covered) |
-| `malloc_failure_linear_search` | `aot_lookup_function` | Generated, build failed | ⏭️ SKIPPED | Requires mocking runtime_malloc (no mock framework) |
+| Item | Verify Issue | Action | Result |
+|------|--------------|--------|--------|
+| test_1 | Not renamed | Renamed | ✅ |
 ```
 
 ---
 
-**Enforcement Rules:**
-
-1. ❌ You CANNOT skip all suggested tests with a single excuse
-2. ✅ You MUST attempt pattern exploration for each suggestion
-3. ✅ You MUST document specific technical blockers for skipped tests
-4. ✅ You MUST try at least 80% of suggested tests (unless valid technical blockers exist)
-
-### PHASE 3: Final Report
+### PHASE 2: Final Report
 
 ```bash
 ./get_coverage.sh <TEST_FILE_PATH>
@@ -480,24 +338,17 @@ Record each new test in output document's Phase 2 table with:
 1. Record initial coverage BEFORE modifications
 2. Verify coverage after EACH modification
 3. Existing test fixes: Accept if coverage NOT dropped
-4. New test cases: Accept ONLY if coverage improved
-5. Revert/remove changes that don't meet criteria
-6. Record final coverage AFTER modifications
-7. Use CONCISE output format (tables, not paragraphs)
-8. Enforce overall coverage gate: Final MUST be >= Initial
-9. **PHASE 2 MANDATORY: Explore patterns BEFORE claiming "too complex"**
-10. **PHASE 2 MANDATORY: Attempt EVERY suggested test individually**
-11. **PHASE 2 MANDATORY: Document specific technical blocker for each skip**
+4. Revert/remove changes that don't meet criteria
+5. Record final coverage AFTER modifications
+6. Use CONCISE output format (tables, not paragraphs)
+7. Enforce overall coverage gate: Final MUST be >= Initial
 
 ### ❌ MUST NOT DO
 1. Skip coverage verification
 2. Keep modifications that reduce coverage
-3. Keep new tests that don't add coverage
-4. Write long paragraphs or code blocks in output
-5. Skip any test case or suggestion from review without specific technical reason
-6. **Skip entire Phase 2 with vague excuses like "too complex" or "requires setup"**
-7. **Claim a test is impossible without first exploring existing test patterns**
-8. **Use generic skip reasons - each skip must have specific error messages or technical details**
+3. Write long paragraphs or code blocks in output
+4. Skip any quality/alignment fix from review without specific technical reason
+5. **Generate new test cases** — Enhancement Recommendations in review are for future reference only
 
 ## Quick Reference
 

@@ -34,7 +34,6 @@ model_name: main
 | Quality Fixes | N | N | N | N |
 | Static Analysis Fixes | N | N | N | N |
 | Alignment Fixes | N | N | N | N |
-| New Tests | N | N | N | N |
 | Coverage Claims | 1 | 1 | 0 | 0 |
 
 **Compliance Rate**: XX%
@@ -63,14 +62,6 @@ model_name: main
 | `test_1` | Rename | FIXED | Name changed ✓ | ✅ |
 | `test_2` | Modify assertion | SKIPPED (redesign needed) | Documented ✓ | ✅ |
 
-## New Tests
-
-| Test | Target | Fix Status | Verify | Result |
-|------|--------|------------|--------|--------|
-| `new_test_1` | func_a SUCCESS | ADDED | Exists in file ✓ | ✅ |
-| `new_test_2` | func_b FAILURE | SKIPPED (no coverage) | Valid reason ✓ | ✅ |
-| `new_test_3` | func_c EDGE | NOT FOUND | No entry | ❌ |
-
 ## Coverage
 
 | Claim | Fix Report | Actual | Match |
@@ -85,7 +76,7 @@ model_name: main
 
 ## Non-compliant Items (if any)
 
-- ❌ `new_test_3`: Review suggested but no entry in fix report
+- ❌ `test_X`: Review recommendation not addressed in fix report
 
 ## Conclusion
 
@@ -104,7 +95,7 @@ Pipeline Status: ✅ PASS
 - Fix says "SKIPPED (needs redesign)" → ✅ Compliant (valid reason!)
 - Fix says "FIXED" but code not changed → ❌ Non-compliant
 - Review item not in fix report at all → 🔍 Missing → ❌ Non-compliant
-- Final coverage < Initial coverage (from fix report) → ❌ Non-compliant
+- Final coverage < Initial coverage (from fix report Coverage Summary table) → ❌ Non-compliant
 
 ---
 
@@ -159,17 +150,7 @@ The verify agent will automatically locate:
                                    │
                                    ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│  PHASE 4: VERIFY NEW TEST ADDITIONS                                 │
-│  - For each suggested test in review_summary.md:                    │
-│    - Check if fix_report.md has an entry for this suggestion        │
-│    - If ADDED: verify test exists in source file                    │
-│    - If SKIPPED: verify reason is documented                        │
-│    - Report: ✅ Compliant / ❌ Non-compliant / ⚠️ Partial            │
-└─────────────────────────────────────────────────────────────────────┘
-                                   │
-                                   ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  PHASE 5: VERIFY COVERAGE CLAIMS                                    │
+│  PHASE 4: VERIFY COVERAGE CLAIMS                                    │
 │  - Get actual current coverage using ./get_coverage.sh              │
 │  - Compare with fix_report.md's "Final Coverage" claim              │
 │  - Report discrepancies if any                                      │
@@ -177,7 +158,7 @@ The verify agent will automatically locate:
                                    │
                                    ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│  PHASE 6: GENERATE VERIFICATION REPORT                              │
+│  PHASE 5: GENERATE VERIFICATION REPORT                              │
 │  - Summarize all verification results                               │
 │  - Calculate compliance rate                                        │
 │  - List any issues found                                            │
@@ -273,35 +254,23 @@ For each test with `Alignment: NO` in review.md:
 
 **Record in table format** (see OUTPUT FORMAT above).
 
-### PHASE 4: Verify New Test Additions
-
-For each suggested test in review.md "Enhancement Recommendations":
-
-1. **Find** entry in fix.md
-2. **Check** status: ADDED / SKIPPED / NOT FOUND
-3. **If ADDED**: Verify test exists in source file
-4. **If SKIPPED with "no coverage contribution"**: → ✅ Compliant (valid reason!)
-5. **If NOT FOUND**: → ❌ Non-compliant
-
-**Record in table format** (see OUTPUT FORMAT above).
-
-### PHASE 5: Verify Coverage Claims
+### PHASE 4: Verify Coverage Claims
 
 ```bash
 ./get_coverage.sh <TEST_FILE_PATH>  # e.g., smart-tests/constants/enhanced_i32_const_test.cc
 ```
 
-Compare actual vs fix.md "Final Coverage" claim:
-- Match → ✅ Compliant
+Compare actual coverage against fix.md **"Coverage Summary" table** (Initial/Final rows):
+- Actual matches fix.md Final values → ✅ Compliant
 - Mismatch → ❌ Non-compliant
 
-Also enforce regression gate using fix.md:
+Also enforce regression gate using fix.md Coverage Summary:
 - Final >= Initial (Lines and Functions) → ✅ Compliant
 - Final < Initial (either Lines or Functions) → ❌ Non-compliant
 
 **Record in table format** (see OUTPUT FORMAT above).
 
-### PHASE 6: Generate Report
+### PHASE 5: Generate Report
 
 Calculate compliance rate and determine status:
 - Compliance = 100% → ✅ PASS (no re-fix needed)
@@ -313,10 +282,12 @@ If any ❌ Non-compliant items, list them in "Non-compliant Items" section.
 
 ### ✅ MUST DO
 1. Read BOTH review.md AND fix.md
-2. Verify EVERY review item has fix report entry
+2. Verify fix report has entries for these review sections: **Quality Issues Summary**, **Static Analysis**, and **Alignment: NO** tests
 3. Check actual source code for claimed modifications
-4. Verify coverage claims against actual
+4. Verify coverage claims against actual (fix.md Coverage Summary table)
 5. Use CONCISE table format
+
+> **Note**: Do NOT check Enhancement Recommendations — fix agent intentionally does not implement them. Ignore this section when computing compliance rate.
 
 ### ❌ MUST NOT DO
 1. Skip any review item
