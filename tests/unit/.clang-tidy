@@ -1,0 +1,50 @@
+# refer to https://clang.llvm.org/extra/clang-tidy/checks/list.html
+#
+# Configure clang-tidy for unit tests.
+
+Checks: >
+  -*,
+  bugprone-*,
+  cert-*,
+  clang-analyzer-*,
+  concurrency-*,
+  misc-*,
+  modernize-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-macro-parentheses,
+  -misc-unused-parameters,
+  -misc-non-private-member-variables-in-classes,
+  -modernize-avoid-c-arrays,
+  -modernize-use-override,
+  -modernize-use-trailing-return-type,
+  -readability-braces-around-statements,
+  -readability-else-after-return,
+  -readability-function-cognitive-complexity,
+  -readability-identifier-length,
+  -readability-isolate-declaration,
+  -readability-magic-numbers,
+  -readability-named-parameter,
+  -readability-non-const-parameter,
+  -readability-redundant-preprocessor,
+  -readability-suspicious-call-argument,
+  -readability-uppercase-literal-suffix,
+  -readability-convert-member-functions-to-static
+
+
+# Turn all the warnings from the checks above into errors.
+WarningsAsErrors: "*"
+
+# headers in the following directories will be checked:
+#   - core/iwasm/
+#   - core/shared/
+HeaderFilterRegex: '(core/iwasm/|core/shared/).*\\.h$'
+
+# goto .clang-format at root directory to see the format style
+FormatStyle: file
+
+CheckOptions:
+  - { key: readability-identifier-naming.NamespaceCase, value: lower_case }
+  - { key: readability-function-cognitive-complexity.Threshold, value: 100 }

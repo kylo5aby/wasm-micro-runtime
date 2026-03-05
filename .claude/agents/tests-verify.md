@@ -31,6 +31,8 @@ model_name: main
 
 | Category | Total | ✅ | ❌ | 🔍 |
 |----------|-------|---|---|---|
+| Quality Fixes | N | N | N | N |
+| Static Analysis Fixes | N | N | N | N |
 | Alignment Fixes | N | N | N | N |
 | New Tests | N | N | N | N |
 | Coverage Claims | 1 | 1 | 0 | 0 |
@@ -39,6 +41,20 @@ model_name: main
 **Status**: ✅ PASS (100%) / ❌ NEEDS RE-FIX (< 100%)
 
 ---
+
+## Quality Fixes
+
+| Test Case | Issue | Fix Status | Verify | Result |
+|-----------|-------|------------|--------|--------|
+| `test_A` | `ASSERT_TRUE(true)` | FIXED | Assertion replaced ✓ | ✅ |
+| `test_B` | `GTEST_SKIP()` | DELETED | Test removed ✓ | ✅ |
+
+## Static Analysis Fixes
+
+| Line | Category | Fix Status | Verify | Result |
+|------|----------|------------|--------|--------|
+| 42 | bugprone-narrowing-conversions | FIXED | Type changed ✓ | ✅ |
+| 156 | readability-convert-member-functions-to-static | FIXED | `static` added ✓ | ✅ |
 
 ## Alignment Fixes
 
@@ -113,7 +129,27 @@ The verify agent will automatically locate:
                                    │
                                    ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│  PHASE 1: VERIFY EXISTING TEST MODIFICATIONS                        │
+│  PHASE 1: VERIFY QUALITY FIXES                                      │
+│  - For each quality issue in review.md "Quality Issues Summary":    │
+│    - Check if fix_report.md has an entry for this issue             │
+│    - If FIXED/DELETED: verify the change was applied                │
+│    - If SKIPPED: verify reason is documented                        │
+│    - Report: ✅ Compliant / ❌ Non-compliant / 🔍 Missing            │
+└─────────────────────────────────────────────────────────────────────┘
+                                   │
+                                   ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  PHASE 2: VERIFY STATIC ANALYSIS FIXES                              │
+│  - For each clang-tidy issue in review.md "Static Analysis":        │
+│    - Check if fix_report.md has an entry for this issue             │
+│    - If FIXED: verify the code change addresses the issue           │
+│    - If SKIPPED: verify reason is documented                        │
+│    - Report: ✅ Compliant / ❌ Non-compliant / 🔍 Missing            │
+└─────────────────────────────────────────────────────────────────────┘
+                                   │
+                                   ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  PHASE 3: VERIFY ALIGNMENT FIXES                                    │
 │  - For each test with "Alignment: NO" in review_summary.md:         │
 │    - Check if fix_report.md has an entry for this test              │
 │    - If FIXED: verify the actual code matches recommendation        │
@@ -123,25 +159,25 @@ The verify agent will automatically locate:
                                    │
                                    ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│  PHASE 2: VERIFY NEW TEST ADDITIONS                                 │
+│  PHASE 4: VERIFY NEW TEST ADDITIONS                                 │
 │  - For each suggested test in review_summary.md:                    │
 │    - Check if fix_report.md has an entry for this suggestion        │
 │    - If ADDED: verify test exists in source file                    │
 │    - If SKIPPED: verify reason is documented                        │
-│    - Report: ✅ Compliant / ❌ Non-compliant / ⚠️ Partial          │
+│    - Report: ✅ Compliant / ❌ Non-compliant / ⚠️ Partial            │
 └─────────────────────────────────────────────────────────────────────┘
                                    │
                                    ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│  PHASE 3: VERIFY COVERAGE CLAIMS                                    │
-│  - Get actual current coverage using ./get_coverage.sh        │
+│  PHASE 5: VERIFY COVERAGE CLAIMS                                    │
+│  - Get actual current coverage using ./get_coverage.sh              │
 │  - Compare with fix_report.md's "Final Coverage" claim              │
 │  - Report discrepancies if any                                      │
 └─────────────────────────────────────────────────────────────────────┘
                                    │
                                    ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│  PHASE 4: GENERATE VERIFICATION REPORT                              │
+│  PHASE 6: GENERATE VERIFICATION REPORT                              │
 │  - Summarize all verification results                               │
 │  - Calculate compliance rate                                        │
 │  - List any issues found                                            │
@@ -197,7 +233,35 @@ cd ~/zhenwei/wasm-micro-runtime/tests/unit
 
 **Create output** following the format in "CRITICAL: OUTPUT FORMAT" above.
 
-### PHASE 1: Verify Alignment Fixes
+### PHASE 1: Verify Quality Fixes
+
+For each quality issue in review.md "Quality Issues Summary" section:
+
+1. **Find** entry in fix.md "Phase 0.5: Quality Fix" table
+2. **Check** status: FIXED / DELETED / SKIPPED / NOT FOUND
+3. **If FIXED/DELETED**: Verify code change was applied (test modified or removed)
+4. **If SKIPPED**: Check if reason is valid → ✅ Compliant
+5. **If NOT FOUND**: → 🔍 Missing → ❌ Non-compliant
+
+**Record in table format** (see OUTPUT FORMAT above).
+
+### PHASE 2: Verify Static Analysis Fixes
+
+For each clang-tidy issue in review.md "Static Analysis" section:
+
+1. **Find** entry in fix.md "Phase 0.75: Static Analysis Fix" table
+2. **Check** status: FIXED / SKIPPED / NOT FOUND
+3. **If FIXED**: Verify code change addresses the issue by inspecting source code
+   - Check if the described fix was actually applied (e.g., type changed, `static` added)
+   - **Do NOT re-run clang-tidy** (requires clang toolchain reconfiguration)
+4. **If SKIPPED**: Check if reason is valid (e.g., "suppressed in .clang-tidy") → ✅ Compliant
+5. **If NOT FOUND**: → 🔍 Missing → ❌ Non-compliant
+
+**Verification method**: Source code inspection only. Do not re-run clang-tidy.
+
+**Record in table format** (see OUTPUT FORMAT above).
+
+### PHASE 3: Verify Alignment Fixes
 
 For each test with `Alignment: NO` in review.md:
 
@@ -209,7 +273,7 @@ For each test with `Alignment: NO` in review.md:
 
 **Record in table format** (see OUTPUT FORMAT above).
 
-### PHASE 2: Verify New Test Additions
+### PHASE 4: Verify New Test Additions
 
 For each suggested test in review.md "Enhancement Recommendations":
 
@@ -221,10 +285,10 @@ For each suggested test in review.md "Enhancement Recommendations":
 
 **Record in table format** (see OUTPUT FORMAT above).
 
-### PHASE 3: Verify Coverage Claims
+### PHASE 5: Verify Coverage Claims
 
 ```bash
-./get_coverage.sh <TEST_FILE>
+./get_coverage.sh <TEST_FILE_PATH>  # e.g., smart-tests/constants/enhanced_i32_const_test.cc
 ```
 
 Compare actual vs fix.md "Final Coverage" claim:
@@ -237,7 +301,7 @@ Also enforce regression gate using fix.md:
 
 **Record in table format** (see OUTPUT FORMAT above).
 
-### PHASE 4: Generate Report
+### PHASE 6: Generate Report
 
 Calculate compliance rate and determine status:
 - Compliance = 100% → ✅ PASS (no re-fix needed)
@@ -264,9 +328,13 @@ If any ❌ Non-compliant items, list them in "Non-compliant Items" section.
 
 ```bash
 cd ~/zhenwei/wasm-micro-runtime/tests/unit
-./get_coverage.sh <TEST_FILE>
+./get_coverage.sh <TEST_FILE_PATH>  # e.g., smart-tests/constants/enhanced_i32_const_test.cc
 grep -n "TEST_F.*<TestName>" <test_file.cc>
 ```
+
+**Notes**:
+- Redundancy cleanup is performed by review agent (PHASE 1.5), not verified here
+- Static analysis fixes are verified by source code inspection only (no clang-tidy re-run)
 
 ## Pipeline Integration
 

@@ -48,6 +48,17 @@ model_name: main
 
 ---
 
+## Phase 0.75: Static Analysis Fix
+
+| Line | Category | Issue | Action | Result |
+|------|----------|-------|--------|--------|
+| 42 | bugprone-narrowing-conversions | `uint32` to `int32` | Changed type to `int32` | ✅ |
+| 156 | readability-convert-member-functions-to-static | method can be static | Added `static` keyword | ✅ |
+
+**Summary**: N issues fixed
+
+---
+
 ## Phase 1: Fix Alignment Issues
 
 ### Test: <TEST_CASE_NAME>
@@ -79,6 +90,7 @@ model_name: main
 | Category | Count |
 |----------|-------|
 | Quality Fixes | N |
+| Static Analysis Fixes | N |
 | Alignment Fixes | N |
 | New Tests Added | N |
 | Tests Skipped | N |
@@ -110,8 +122,8 @@ model_name: main
 1. Test case reviews with `Alignment: YES/NO` status
 2. `Recommendations` section for tests with `Alignment: NO`
 3. `Enhancement Recommendations` with suggested new test cases
-4. `Redundancy Cleanup` section (redundant tests already identified)
-5. `Quality Screening` section (diagnostic issues per test case)
+4. `Quality Screening` section (diagnostic issues per test case)
+5. `Static Analysis` section (clang-tidy warnings/errors)
 
 **OPTIONAL INPUT (for RE-FIX mode)**:
 - Previous `*_fix.md` file (context of what was already attempted)
@@ -128,21 +140,11 @@ If `*_verify.md` is not provided, locate it automatically in the same directory 
 │  PHASE 0: INITIALIZATION                                            │
 │  - Parse INPUT FILE → extract test file path                        │
 │  - cd ~/zhenwei/wasm-micro-runtime/tests/unit                       │
-│  - Run: ./get_coverage.sh <TEST_FILE_PATH>            │
-│  - Record INITIAL_COVERAGE in output document                       │
+│  - rm -rf build                                                     │
+│  - cmake -S . -B build -DCOLLECT_CODE_COVERAGE=1 2>&1 | tail -10    │
 │  - cmake --build build/smart-tests/<MODULE_NAME> 2>&1 | tail -15    │
-└─────────────────────────────────────────────────────────────────────┘
-                                   │
-                                   ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  PHASE 0.25: REDUNDANCY CLEANUP (enforced by coverage gate)          │
-│  - Read redundant test cases from review.md "Redundant Test Cases"   │
-│  - Extract test case names from the table                            │
-│  - Delete redundant tests in bulk:                                   │
-│    python3 delete_test_cases.py <TEST_FILE_PATH> <test1> <test2>... │
-│  - Rebuild module                                                    │
-│  - Verify coverage NOT dropped vs INITIAL (if dropped → REVERT)      │
-│  - Record deletions as part of Phase 0.5 table (Action=Deleted)     │
+│  - Run: ./get_coverage.sh <TEST_FILE_PATH>                          │
+│  - Record INITIAL_COVERAGE in output document                       │
 └─────────────────────────────────────────────────────────────────────┘
                                    │
                                    ▼
@@ -154,6 +156,16 @@ If `*_verify.md` is not provided, locate it automatically in the same directory 
 │    - Invalid assertions (ASSERT_TRUE(true), SUCCEED())              │
 │    - Placeholders (FAIL(), GTEST_SKIP())                            │
 │    - Empty test bodies / missing assertions                         │
+│  - Record all fixes in output document                              │
+└─────────────────────────────────────────────────────────────────────┘
+                                   │
+                                   ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  PHASE 0.75: STATIC ANALYSIS FIX (from review clang-tidy results)   │
+│  - Read "Static Analysis" section from review.md                    │
+│  - For each clang-tidy warning/error:                               │
+│    - Apply fix based on category (type conversion, static, etc.)    │
+│  - Rebuild to verify compilation (do NOT re-run clang-tidy)         │
 │  - Record all fixes in output document                              │
 └─────────────────────────────────────────────────────────────────────┘
                                    │
@@ -230,63 +242,20 @@ All commands execute from: `~/zhenwei/wasm-micro-runtime/tests/unit`
 ```bash
 cd ~/zhenwei/wasm-micro-runtime/tests/unit
 
+# Clean and configure build
+rm -rf build
+cmake -S . -B build -DCOLLECT_CODE_COVERAGE=1 2>&1 | tail -10
+
+# Build module FIRST (required before get_coverage.sh)
+cmake --build build/smart-tests/<MODULE_NAME> 2>&1 | tail -15
+
 # Get initial coverage (RECORD THIS!)
 ./get_coverage.sh <TEST_FILE_PATH>
-
-# Build if needed
-cmake --build build/smart-tests/<MODULE_NAME> 2>&1 | tail -15
 ```
 
 **Create output file** following the EXACT format in "CRITICAL: OUTPUT FORMAT" above.
 
 ---
-
-### PHASE 0.25: Redundancy Cleanup (enforced by coverage gate)
-
-**Goal**: Remove truly redundant tests (0 incremental coverage) while guaranteeing overall coverage does not regress.
-
-**Input**: Redundant test cases are already identified in the review.md file under "Redundant Test Cases" section.
-
-**Workflow**:
-
-1. **Read redundant test cases from review.md**:
-   - Locate the "Redundant Test Cases" table in the review.md file
-   - Extract test case names from the first column (format: `SuiteName.TestName` or full test case name)
-   - Example table format:
-     ```markdown
-     | Test Case | Reason |
-     |-----------|--------|
-     | `F32ConstTest.BoundaryValues_PreservesLimits` | No incremental coverage contribution |
-     | `aot_resolve_import_func_SubModuleLoadFails_LogWarning` | No incremental coverage contribution |
-     ```
-
-2. **Delete redundant tests in bulk**:
-   ```bash
-   # Extract test case names and pass as arguments
-   python3 delete_test_cases.py <TEST_FILE_PATH> <test_case1> <test_case2> <test_case3> ...
-   
-   # Example:
-   python3 delete_test_cases.py smart-tests/constants/enhanced_f32_const_test.cc \
-       F32ConstTest.BoundaryValues_PreservesLimits \
-       F32ConstTest.SubnormalValues_PreservesAccuracy \
-       F32ConstTest.SpecialValues_PreservesIEEE754
-   ```
-
-3. **Rebuild after deletion**:
-   ```bash
-   cmake --build build/smart-tests/<MODULE_NAME> 2>&1 | tail -15
-   ```
-
-4. **Coverage gate: MUST NOT drop vs INITIAL**:
-   ```bash
-   ./get_coverage.sh <TEST_FILE_PATH>
-   ```
-
-**Accept/Reject**:
-- If coverage **drops** vs INITIAL → **REVERT** the file to pre-cleanup state and record as ❌ FAILED (coverage regression)
-- If coverage **maintained or improved** → keep changes and record deletions in Phase 0.5 table (Action=Deleted)
-
-**Note**: The agent must parse the "Redundant Test Cases" table from review.md and extract test case names, then pass them as arguments to `delete_test_cases.py`. The script accepts test case names in either `SuiteName.TestName` format or full test case name format.
 
 ### PHASE 0.5: Quality Fix (from review + safety scan)
 
@@ -301,6 +270,40 @@ cmake --build build/smart-tests/<MODULE_NAME> 2>&1 | tail -15
 | Outdated comments | Wrong line numbers | Remove comment |
 
 **Record all fixes in output document's Phase 0.5 table.**
+
+---
+
+### PHASE 0.75: Static Analysis Fix (from review clang-tidy results)
+
+**Goal**: Fix clang-tidy warnings/errors identified in the review report's "Static Analysis" section.
+
+**Input**: Read the "Static Analysis" section from `*_review.md`, which contains a table of clang-tidy findings.
+
+**Workflow**:
+
+1. **Parse static analysis findings from review.md**:
+   - Locate the "Static Analysis" or "clang-tidy Results" section
+   - Extract each warning/error with: Line, Category, Message
+
+2. **Apply fixes based on category**:
+   | Category | Common Fix |
+   |----------|------------|
+   | `bugprone-narrowing-conversions` | Change variable type or add explicit cast |
+   | `readability-convert-member-functions-to-static` | Add `static` keyword to method |
+   | `readability-implicit-bool-conversion` | Add explicit `!= nullptr` or `!= 0` |
+   | `misc-non-private-member-variables-in-classes` | Change to private or add accessor |
+   | `modernize-use-trailing-return-type` | Convert to `auto func() -> ReturnType` |
+
+3. **Rebuild after fixes**:
+   ```bash
+   cmake --build build/smart-tests/<MODULE_NAME> 2>&1 | tail -10
+   ```
+
+**Record all fixes in output document's Phase 0.75 table.**
+
+**Note**: 
+- If a clang-tidy warning is suppressed in project's `.clang-tidy` config, it can be skipped.
+- Do NOT re-run clang-tidy for verification (current build uses gcc, not clang toolchain). Verification is done by verify agent.
 
 ---
 
@@ -338,7 +341,8 @@ For each test with `Alignment: NO` in review:
    - **⚠️ MANDATORY**: Check exit code and output - test must execute successfully with NO failures
    - **Note**: `<TEST_CASE_NAME>` is the specific test case name (e.g., `F32ConstTest.BasicConstants_ReturnsCorrectValues`), not the class name
    - If ctest fails: document specific error and mark as ❌ FAILED (revert changes)
-5. **Verify coverage**: `python3 is_test_case_useful.py <TEST_FILE> <TEST_CASE>`
+5. **Verify coverage**: `python3 is_test_case_useful.py <TEST_FILE_PATH> <SuiteName.TestName>`
+   - **Note**: `<SuiteName.TestName>` format required (e.g., `F32ConstTest.BasicConstants_ReturnsCorrectValues`)
 6. **Accept/Reject**:
    - Coverage maintained/improved AND ctest passes → ✅ FIXED
    - Coverage dropped (per-test OR overall gate) → ❌ FAILED (revert changes)
@@ -373,22 +377,37 @@ You MUST attempt to generate EVERY suggested test case from review. NEVER skip e
 1. **Generate** test code following discovered patterns
 2. **Append** to test file
 3. **Rebuild**: `cmake --build build/smart-tests/<MODULE_NAME> 2>&1 | tail -10`
+4. If build fails: **delete the test immediately** using `python3 delete_test_cases.py`, document error and mark as ⏭️ SKIPPED
 
 **Step 4: Verify ctest execution**
 - Run: `ctest --test-dir build/smart-tests/<MODULE_NAME> -R "<TEST_CASE_NAME>" --output-on-failure`
 - **⚠️ MANDATORY**: Check exit code and output - test must execute successfully with NO failures
 - **Note**: `<TEST_CASE_NAME>` is the specific new test case name (e.g., `F32ConstTest.NewTestName`), not the class name
-- If ctest fails: document specific error and mark as ⏭️ SKIPPED (do not proceed to Step 5)
+- If ctest fails: **delete the test immediately** using `python3 delete_test_cases.py`, document specific error and mark as ⏭️ SKIPPED
 
 **Step 5: Verify coverage contribution**
-- Run: `python3 is_test_case_useful.py <TEST_FILE> <NEW_TEST_CASE>`
+- Run: `python3 is_test_case_useful.py <TEST_FILE_PATH> <SuiteName.TestName>`
+- **Note**: Use `SuiteName.TestName` format (e.g., `F32ConstTest.NewTestName`)
 - **⚠️ MANDATORY**: Test must contribute to coverage (new lines > 0)
 
 **Step 6: Accept/Reject Decision**
 - Coverage improved (new lines > 0) AND ctest passes (no failures) AND overall gate not dropped → ✅ ADDED
-- No coverage contribution after implementation → ⏭️ SKIPPED (delete test case)
-- ctest fails (test execution errors) → ⏭️ SKIPPED (document specific ctest error from Step 4)
-- Build fails with technical blocker → ⏭️ SKIPPED (document specific build error)
+- No coverage contribution after implementation → ⏭️ SKIPPED (**MUST delete test case immediately**)
+- ctest fails (test execution errors) → ⏭️ SKIPPED (**MUST delete test case immediately**)
+- Build fails with technical blocker → ⏭️ SKIPPED (**MUST delete test case immediately**)
+
+**⚠️ CRITICAL: Deletion of SKIPPED Tests**
+
+When a new test case is marked as SKIPPED, you **MUST immediately delete it** before proceeding to the next test. Use:
+
+```bash
+python3 delete_test_cases.py <TEST_FILE_PATH> <SuiteName.TestName>
+```
+
+**Why this is mandatory:**
+1. Leaving SKIPPED tests in the file causes compilation errors (duplicate definitions)
+2. If fix agent runs multiple times, duplicate tests accumulate
+3. SKIPPED means "rejected" - the test code should not remain in the file
 
 **Step 7: Documentation**
 Record each new test in output document's Phase 2 table with:
@@ -486,11 +505,11 @@ Record each new test in output document's Phase 2 table with:
 # Working directory
 cd ~/zhenwei/wasm-micro-runtime/tests/unit
 
-# Get coverage
-./get_coverage.sh <TEST_FILE>
+# Get coverage (TEST_FILE_PATH = relative path, e.g., smart-tests/constants/enhanced_i32_const_test.cc)
+./get_coverage.sh <TEST_FILE_PATH>
 
-# Check if test case useful
-python3 is_test_case_useful.py <TEST_FILE> <TEST_CASE_NAME>
+# Check if test case useful (use SuiteName.TestName format)
+python3 is_test_case_useful.py <TEST_FILE_PATH> <SuiteName.TestName>
 
 # Build module
 cmake --build build/smart-tests/<MODULE_NAME> 2>&1 | tail -15
