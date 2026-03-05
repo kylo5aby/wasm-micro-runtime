@@ -1,5 +1,50 @@
 Please refer to [kode-setup-guide.pdf](./kode-setup-guide.pdf) and [official website](https://github.com/shareAI-lab/Kode-Agent/tree/main) to learn how to configure Kode.
 
+### the agent dir architecture
+
+they are in `.clude` and `.kode` dir now.
+
+```
+.claude/
+├── agents
+│   ├── code-coverage-enhance.md
+│   ├── fuzz-debug.md
+│   ├── fuzz-debug-test.md
+│   ├── opcode-test-enhance.md
+│   ├── tests-fix.md
+│   ├── tests-pipeline.md
+│   ├── tests-review.md
+│   └── tests-verify.md
+├── commands
+│   ├── batch-coverage-tasks.md
+│   ├── batch-opcode-test.md
+│   ├── enhance-coverage.md
+│   ├── generate-opcode-test.md
+│   ├── improve-coverage.md
+│   └── opcode-enhance.md
+└── skills
+    ├── code-review.md
+    └── cross-module-test.md
+```
+
+```
+.kode
+├── agents
+│   ├── code-coverage-enhance.md
+│   ├── coverage-plan-designer.md
+│   ├── coverage-plan-reviewer.md
+│   ├── feature-plan-designer.md
+│   ├── feature-plan-reviewer.md
+│   ├── opcode-test-enhance.md
+│   └── plan-executor.md
+└── commands
+    ├── batch-cover-lines-tasks.md
+    ├── batch-opcode-test.md
+    ├── design_plan.md
+    ├── fix-issue.md
+    └── generate-opcode-test.md
+```
+
 ### How to run
 
 #### test generation
